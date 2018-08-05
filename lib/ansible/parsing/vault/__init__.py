@@ -1356,11 +1356,23 @@ class VaultAES256:
 
         return to_bytes(hmac.hexdigest(), errors='surrogate_or_strict'), hexlify(b_ciphertext)
 
+    @staticmethod
+    def _gen_salt(b_plaintext=None):
+        if HAS_CRYPTOGRAPHY:
+            digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+            digest.update(b_plaintext)
+            b_salt = digest.finalize()
+        elif HAS_PYCRYPTO:
+            b_salt = SHA256_pycrypto.new(b_plaintext).digest()
+        else:
+            b_salt = os.urandom(32)
+        return b_salt
+
     @classmethod
     def encrypt(cls, b_plaintext, secret):
         if secret is None:
             raise AnsibleVaultError('The secret passed to encrypt() was None')
-        b_salt = os.urandom(32)
+        b_salt = cls._gen_salt(b_plaintext)
         b_password = secret.bytes
         b_key1, b_key2, b_iv = cls._gen_key_initctr(b_password, b_salt)
 

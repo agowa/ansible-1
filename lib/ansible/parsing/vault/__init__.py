@@ -216,7 +216,7 @@ def format_vaulttext_envelope(b_ciphertext, cipher_name=DEFAULT_CIPHER, version=
 
     if not cipher_name:
         raise AnsibleError("the cipher must be set before adding a header")
-    if not cipher_name in CIPHER_MAPPING.keys():
+    if cipher_name not in CIPHER_MAPPING.keys():
         raise AnsibleError(u"Cipher {0} is currently not supported.".format(cipher_name))
     if not version:
         raise AnsibleError("version must be set.")

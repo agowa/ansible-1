@@ -214,9 +214,12 @@ def format_vaulttext_envelope(b_ciphertext, cipher_name=DEFAULT_CIPHER, version=
             formatted to 80 char columns and has the header prepended
     """
 
-    assert cipher_name, "cipher_name must be set."
-    assert cipher_name in CIPHER_MAPPING.keys(), u"Cipher {0} is currently not supported.".format(cipher_name)
-    assert version, "version must be set."
+    if not cipher_name:
+        raise AnsibleError("the cipher must be set before adding a header")
+    if not cipher_name in CIPHER_MAPPING.keys():
+        raise AnsibleError(u"Cipher {0} is currently not supported.".format(cipher_name))
+    if not version:
+        raise AnsibleError("version must be set.")
 
     # If we specify a vault_id, use format version 1.2. For no vault_id, stick to 1.1
     if vault_id and vault_id != u'default':
@@ -1364,8 +1367,7 @@ class VaultAES256:
         #   password = '1234'
         # an attacker could take the sha256 hash out of the salt value
         # and use it to broothforce the password, as sha256('1234') == salt.
-        if not secret or not b_plaintext:
-            return os.urandom(32)
+        #
         # If a secret was provided, we first append it the the plaintext and than generate the
         # hash. By doing so we increase the length of the plaintext and also add a string that is
         # in all cases unknown to the attacker (the passphrase).
@@ -1374,8 +1376,10 @@ class VaultAES256:
         # Therefore we also use a randomn salt if no plaintext is provided, or we would leak the
         # sha256 hash of the secret.
 
-        assert secret
-        assert b_plaintext
+        if not secret or not b_plaintext:
+            return os.urandom(32)
+        # assert secret
+        # assert b_plaintext
 
         b_secret = secret.bytes
         b_plaintextAndSecret = b_plaintext + b_secret
@@ -1512,9 +1516,9 @@ CIPHER_WRITE_BLACKLIST = [
 ]
 CIPHER_BLACKLIST = []
 CIPHER_WHITELIST = frozenset(
-    [ item for item in CIPHER_MAPPING.keys() if item not in CIPHER_BLACKLIST ]
+    [item for item in CIPHER_MAPPING.keys() if item not in CIPHER_BLACKLIST]
 )
 CIPHER_WRITE_WHITELIST = frozenset(
-    [ item for item in CIPHER_MAPPING.keys() if item not in CIPHER_WRITE_BLACKLIST ]
+    [item for item in CIPHER_MAPPING.keys() if item not in CIPHER_WRITE_BLACKLIST]
 )
 # Also see DEFAULT_CIPHERS at the top of this file

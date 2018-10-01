@@ -150,11 +150,11 @@ options:
       - If you want to add a profile to the list of profiles currently active
         on the virtual, then simply add it to the C(profiles) list. See
         examples for an illustration of this.
-      - B(Profiles matter). This module will fail to configure a BIG-IP if you mix up
-        your profiles, or, if you attempt to set an IP protocol which your current,
-        or new, profiles do not support. Both this module, and BIG-IP, will tell you
-        when you are wrong, with an error resembling C(lists profiles incompatible
-        with its protocol).
+      - B(Profiles matter). There is a good chance that this module will fail to configure
+        a BIG-IP if you mix up your profiles, or, if you attempt to set an IP protocol
+        which your current, or new, profiles do not support. Both this module, and BIG-IP,
+        will tell you when you are wrong, with an error resembling C(lists profiles
+        incompatible with its protocol).
       - If you are unsure what correct profile combinations are, then have a BIG-IP
         available to you in which you can make changes and copy what the correct
         combinations are.
@@ -331,35 +331,12 @@ options:
       - The C(Log all requests) and C(Log illegal requests) are mutually exclusive and
         therefore, this module will raise an error if the two are specified together.
     version_added: 2.6
-  security_nat_policy:
-    description:
-      - Specify the Firewall NAT policies for the virtual server.
-      - You can specify one or more NAT policies to use.
-      - The most specific policy is used. For example, if you specify that the
-        virtual server use the device policy and the route domain policy, the route
-        domain policy overrides the device policy.
-    version_added: 2.7
-    suboptions:
-      policy:
-        description:
-          - Policy to apply a NAT policy directly to the virtual server.
-          - The virtual server NAT policy is the most specific, and overrides a
-            route domain and device policy, if specified.
-          - To remove the policy, specify an empty string value.
-      use_device_policy:
-        description:
-          - Specify that the virtual server uses the device NAT policy, as specified
-            in the Firewall Options.
-          - The device policy is used if no route domain or virtual server NAT
-            setting is specified.
-        type: bool
-      use_route_domain_policy:
-        description:
-          - Specify that the virtual server uses the route domain policy, as
-            specified in the Route Domain Security settings.
-          - When specified, the route domain policy overrides the device policy, and
-            is overridden by a virtual server policy.
-        type: bool
+notes:
+  - Requires BIG-IP software version >= 11
+  - Requires the netaddr Python package on the host. This is as easy as pip
+    install netaddr.
+requirements:
+  - netaddr
 extends_documentation_fragment: f5
 author:
   - Tim Rupp (@caphrim007)
@@ -637,41 +614,35 @@ from ansible.module_utils.six import iteritems
 from collections import namedtuple
 
 try:
-    from library.module_utils.network.f5.bigip import F5RestClient
-    from library.module_utils.network.f5.common import MANAGED_BY_ANNOTATION_VERSION
-    from library.module_utils.network.f5.common import MANAGED_BY_ANNOTATION_MODIFIED
+    from library.module_utils.network.f5.bigip import HAS_F5SDK
+    from library.module_utils.network.f5.bigip import F5Client
     from library.module_utils.network.f5.common import F5ModuleError
     from library.module_utils.network.f5.common import AnsibleF5Parameters
     from library.module_utils.network.f5.common import cleanup_tokens
     from library.module_utils.network.f5.common import fq_name
     from library.module_utils.network.f5.common import f5_argument_spec
-    from library.module_utils.network.f5.common import fail_json
-    from library.module_utils.network.f5.common import exit_json
-    from library.module_utils.network.f5.common import transform_name
-    from library.module_utils.network.f5.common import mark_managed_by
-    from library.module_utils.network.f5.common import only_has_managed_metadata
-    from library.module_utils.network.f5.compare import cmp_simple_list
-    from library.module_utils.network.f5.ipaddress import is_valid_ip
-    from library.module_utils.network.f5.ipaddress import ip_interface
-    from library.module_utils.network.f5.ipaddress import validate_ip_v6_address
+    try:
+        from library.module_utils.network.f5.common import iControlUnexpectedHTTPError
+    except ImportError:
+        HAS_F5SDK = False
 except ImportError:
-    from ansible.module_utils.network.f5.bigip import F5RestClient
-    from ansible.module_utils.network.f5.common import MANAGED_BY_ANNOTATION_VERSION
-    from ansible.module_utils.network.f5.common import MANAGED_BY_ANNOTATION_MODIFIED
+    from ansible.module_utils.network.f5.bigip import HAS_F5SDK
+    from ansible.module_utils.network.f5.bigip import F5Client
     from ansible.module_utils.network.f5.common import F5ModuleError
     from ansible.module_utils.network.f5.common import AnsibleF5Parameters
     from ansible.module_utils.network.f5.common import cleanup_tokens
     from ansible.module_utils.network.f5.common import fq_name
     from ansible.module_utils.network.f5.common import f5_argument_spec
-    from ansible.module_utils.network.f5.common import fail_json
-    from ansible.module_utils.network.f5.common import exit_json
-    from ansible.module_utils.network.f5.common import transform_name
-    from ansible.module_utils.network.f5.common import mark_managed_by
-    from ansible.module_utils.network.f5.common import only_has_managed_metadata
-    from ansible.module_utils.network.f5.compare import cmp_simple_list
-    from ansible.module_utils.network.f5.ipaddress import is_valid_ip
-    from ansible.module_utils.network.f5.ipaddress import ip_interface
-    from ansible.module_utils.network.f5.ipaddress import validate_ip_v6_address
+    try:
+        from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
+    except ImportError:
+        HAS_F5SDK = False
+
+try:
+    import netaddr
+    HAS_NETADDR = True
+except ImportError:
+    HAS_NETADDR = False
 
 
 class Parameters(AnsibleF5Parameters):
@@ -689,8 +660,7 @@ class Parameters(AnsibleF5Parameters):
         'ipProtocol': 'ip_protocol',
         'fwEnforcedPolicy': 'firewall_enforced_policy',
         'fwStagedPolicy': 'firewall_staged_policy',
-        'securityLogProfiles': 'security_log_profiles',
-        'securityNatPolicy': 'security_nat_policy',
+        'securityLogProfiles': 'security_log_profiles'
     }
 
     api_attributes = [
@@ -699,7 +669,7 @@ class Parameters(AnsibleF5Parameters):
         'disabled',
         'enabled',
         'fallbackPersistence',
-        'ipProtocol',
+        # 'ipProtocol',
         'metadata',
         'persist',
         'policies',
@@ -722,7 +692,6 @@ class Parameters(AnsibleF5Parameters):
         'fwEnforcedPolicy',
         'fwStagedPolicy',
         'securityLogProfiles',
-        'securityNatPolicy',
     ]
 
     updatables = [
@@ -734,7 +703,7 @@ class Parameters(AnsibleF5Parameters):
         'enabled',
         'enabled_vlans',
         'fallback_persistence_profile',
-        'ip_protocol',
+        # 'ip_protocol',
         'irules',
         'metadata',
         'pool',
@@ -748,7 +717,6 @@ class Parameters(AnsibleF5Parameters):
         'firewall_enforced_policy',
         'firewall_staged_policy',
         'security_log_profiles',
-        'security_nat_policy',
     ]
 
     returnables = [
@@ -761,7 +729,7 @@ class Parameters(AnsibleF5Parameters):
         'enabled',
         'enabled_vlans',
         'fallback_persistence_profile',
-        'ip_protocol',
+        # 'ip_protocol',
         'irules',
         'metadata',
         'pool',
@@ -778,23 +746,11 @@ class Parameters(AnsibleF5Parameters):
         'firewall_enforced_policy',
         'firewall_staged_policy',
         'security_log_profiles',
-        'security_nat_policy',
     ]
 
     profiles_mutex = [
-        'sip',
-        'sipsession',
-        'iiop',
-        'rtsp',
-        'http',
-        'diameter',
-        'diametersession',
-        'radius',
-        'ftp',
-        'tftp',
-        'dns',
-        'pptp',
-        'fix',
+        'sip', 'sipsession', 'iiop', 'rtsp', 'http', 'diameter',
+        'diametersession', 'radius', 'ftp', 'tftp', 'dns', 'pptp', 'fix'
     ]
 
     ip_protocols_map = [
@@ -828,8 +784,16 @@ class Parameters(AnsibleF5Parameters):
         result = self._filter_params(result)
         return result
 
+    def is_valid_ip(self, value):
+        try:
+            netaddr.IPAddress(value)
+            return True
+        except (netaddr.core.AddrFormatError, ValueError):
+            return False
+
     def _format_port_for_destination(self, ip, port):
-        if validate_ip_v6_address(ip):
+        addr = netaddr.IPAddress(ip)
+        if addr.version == 6:
             if port == 0:
                 result = '.any'
             else:
@@ -919,85 +883,20 @@ class Parameters(AnsibleF5Parameters):
         return False
 
     def _read_current_message_routing_profiles_from_device(self):
-        result = []
-        result += self._read_diameter_profiles_from_device()
-        result += self._read_sip_profiles_from_device()
-        return result
-
-    def _read_diameter_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/diameter/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [x['name'] for x in response['items']]
-        return result
-
-    def _read_sip_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/sip/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [x['name'] for x in response['items']]
+        collection1 = self.client.api.tm.ltm.profile.diameters.get_collection()
+        collection2 = self.client.api.tm.ltm.profile.sips.get_collection()
+        result = [x.name for x in collection1]
+        result += [x.name for x in collection2]
         return result
 
     def _read_current_fastl4_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/fastl4/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [x['name'] for x in response['items']]
+        collection = self.client.api.tm.ltm.profile.fastl4s.get_collection()
+        result = [x.name for x in collection]
         return result
 
     def _read_current_fasthttp_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/fasthttp/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [x['name'] for x in response['items']]
+        collection = self.client.api.tm.ltm.profile.fasthttps.get_collection()
+        result = [x.name for x in collection]
         return result
 
 
@@ -1060,10 +959,10 @@ class ApiParameters(Parameters):
         if self._values['source'] is None:
             return None
         try:
-            addr = ip_interface(u'{0}'.format(self._values['source']))
-            result = '{0}/{1}'.format(str(addr.ip), addr.network.prefixlen)
+            addr = netaddr.IPNetwork(self._values['source'])
+            result = '{0}/{1}'.format(str(addr.ip), addr.prefixlen)
             return result
-        except ValueError:
+        except netaddr.core.AddrFormatError:
             raise F5ModuleError(
                 "The source IP address must be specified in CIDR format: address/prefix"
             )
@@ -1078,7 +977,7 @@ class ApiParameters(Parameters):
             return result
         destination = re.sub(r'^/[a-zA-Z0-9_.-]+/', '', self._values['destination'])
 
-        if is_valid_ip(destination):
+        if self.is_valid_ip(destination):
             result = Destination(
                 ip=destination,
                 port=None,
@@ -1105,7 +1004,7 @@ class ApiParameters(Parameters):
                 if port == 'any':
                     port = 0
             ip = matches.group('ip')
-            if not is_valid_ip(ip):
+            if not self.is_valid_ip(ip):
                 raise F5ModuleError(
                     "The provided destination is not a valid IP address"
                 )
@@ -1120,7 +1019,7 @@ class ApiParameters(Parameters):
         matches = re.search(pattern, destination)
         if matches:
             ip = matches.group('ip')
-            if not is_valid_ip(ip):
+            if not self.is_valid_ip(ip):
                 raise F5ModuleError(
                     "The provided destination is not a valid IP address"
                 )
@@ -1135,7 +1034,7 @@ class ApiParameters(Parameters):
         if len(parts) == 4:
             # IPv4
             ip, port = destination.split(':')
-            if not is_valid_ip(ip):
+            if not self.is_valid_ip(ip):
                 raise F5ModuleError(
                     "The provided destination is not a valid IP address"
                 )
@@ -1154,7 +1053,7 @@ class ApiParameters(Parameters):
                 # Can be a port of "any". This only happens with IPv6
                 if port == 'any':
                     port = 0
-            if not is_valid_ip(ip):
+            if not self.is_valid_ip(ip):
                 raise F5ModuleError(
                     "The provided destination is not a valid IP address"
                 )
@@ -1253,7 +1152,8 @@ class ApiParameters(Parameters):
     def enabled(self):
         if 'enabled' in self._values:
             return True
-        return False
+        else:
+            return False
 
     @property
     def disabled(self):
@@ -1265,13 +1165,8 @@ class ApiParameters(Parameters):
     def metadata(self):
         if self._values['metadata'] is None:
             return None
-        if only_has_managed_metadata(self._values['metadata']):
-            return None
         result = []
         for md in self._values['metadata']:
-            if md['name'] in [MANAGED_BY_ANNOTATION_VERSION, MANAGED_BY_ANNOTATION_MODIFIED]:
-                continue
-
             tmp = dict(name=str(md['name']))
             if 'value' in md:
                 tmp['value'] = str(md['value'])
@@ -1293,40 +1188,6 @@ class ApiParameters(Parameters):
         result = list(set([x.strip('"') for x in self._values['security_log_profiles']]))
         result.sort()
         return result
-
-    @property
-    def sec_nat_use_device_policy(self):
-        if self._values['security_nat_policy'] is None:
-            return None
-        if 'useDevicePolicy' not in self._values['security_nat_policy']:
-            return None
-        if self._values['security_nat_policy']['useDevicePolicy'] == "no":
-            return False
-        return True
-
-    @property
-    def sec_nat_use_rd_policy(self):
-        if self._values['security_nat_policy'] is None:
-            return None
-        if 'useRouteDomainPolicy' not in self._values['security_nat_policy']:
-            return None
-        if self._values['security_nat_policy']['useRouteDomainPolicy'] == "no":
-            return False
-        return True
-
-    @property
-    def sec_nat_policy(self):
-        if self._values['security_nat_policy'] is None:
-            return None
-        if 'policy' not in self._values['security_nat_policy']:
-            return None
-        return self._values['security_nat_policy']['policy']
-
-    @property
-    def irules(self):
-        if self._values['irules'] is None:
-            return []
-        return self._values['irules']
 
 
 class ModuleParameters(Parameters):
@@ -1380,7 +1241,7 @@ class ModuleParameters(Parameters):
     @property
     def destination(self):
         addr = self._values['destination'].split("%")[0]
-        if not is_valid_ip(addr):
+        if not self.is_valid_ip(addr):
             raise F5ModuleError(
                 "The provided destination is not a valid IP address"
             )
@@ -1402,10 +1263,10 @@ class ModuleParameters(Parameters):
         if self._values['source'] is None:
             return None
         try:
-            addr = ip_interface(u'{0}'.format(self._values['source']))
-            result = '{0}/{1}'.format(str(addr.ip), addr.network.prefixlen)
+            addr = netaddr.IPNetwork(self._values['source'])
+            result = '{0}/{1}'.format(str(addr.ip), addr.prefixlen)
             return result
-        except ValueError:
+        except netaddr.core.AddrFormatError:
             raise F5ModuleError(
                 "The source IP address must be specified in CIDR format: address/prefix"
             )
@@ -1529,7 +1390,7 @@ class ModuleParameters(Parameters):
                 self._values['__warnings'].append(
                     dict(
                         msg="Usage of the 'ALL' value for 'enabled_vlans' parameter is deprecated. Use '*' instead",
-                        version='2.9'
+                        version='2.5'
                     )
                 )
             return result
@@ -1676,45 +1537,6 @@ class ModuleParameters(Parameters):
         result.sort()
         return result
 
-    @property
-    def sec_nat_use_device_policy(self):
-        if self._values['security_nat_policy'] is None:
-            return None
-        if 'use_device_policy' not in self._values['security_nat_policy']:
-            return None
-        return self._values['security_nat_policy']['use_device_policy']
-
-    @property
-    def sec_nat_use_rd_policy(self):
-        if self._values['security_nat_policy'] is None:
-            return None
-        if 'use_route_domain_policy' not in self._values['security_nat_policy']:
-            return None
-        return self._values['security_nat_policy']['use_route_domain_policy']
-
-    @property
-    def sec_nat_policy(self):
-        if self._values['security_nat_policy'] is None:
-            return None
-        if 'policy' not in self._values['security_nat_policy']:
-            return None
-        if self._values['security_nat_policy']['policy'] == '':
-            return ''
-        return fq_name(self.partition, self._values['security_nat_policy']['policy'])
-
-    @property
-    def security_nat_policy(self):
-        result = dict()
-        if self.sec_nat_policy:
-            result['policy'] = self.sec_nat_policy
-        if self.sec_nat_use_device_policy is not None:
-            result['use_device_policy'] = self.sec_nat_use_device_policy
-        if self.sec_nat_use_rd_policy is not None:
-            result['use_route_domain_policy'] = self.sec_nat_use_rd_policy
-        if result:
-            return result
-        return None
-
 
 class Changes(Parameters):
     pass
@@ -1820,22 +1642,6 @@ class UsableChanges(Changes):
             )
         return self._values['security_log_profiles']
 
-    @property
-    def security_nat_policy(self):
-        if self._values['security_nat_policy'] is None:
-            return None
-        result = dict()
-        sec = self._values['security_nat_policy']
-        if 'policy' in sec:
-            result['policy'] = sec['policy']
-        if 'use_device_policy' in sec:
-            result['useDevicePolicy'] = 'yes' if sec['use_device_policy'] else 'no'
-        if 'use_route_domain_policy' in sec:
-            result['useRouteDomainPolicy'] = 'yes' if sec['use_route_domain_policy'] else 'no'
-        if result:
-            return result
-        return None
-
 
 class ReportableChanges(Changes):
     @property
@@ -1900,20 +1706,6 @@ class ReportableChanges(Changes):
         if self._values['port_translation'] == 'enabled':
             return True
         return False
-
-    @property
-    def ip_protocol(self):
-        if self._values['ip_protocol'] is None:
-            return None
-        try:
-            int(self._values['ip_protocol'])
-        except ValueError:
-            return self._values['ip_protocol']
-
-        protocol = next((x[0] for x in self.ip_protocols_map if x[1] == self._values['ip_protocol']), None)
-        if protocol:
-            return protocol
-        return self._values['ip_protocol']
 
 
 class VirtualServerValidator(object):
@@ -2039,19 +1831,19 @@ class VirtualServerValidator(object):
                 self.want.update({'type': 'performance-l4'})
                 self.module.deprecate(
                     msg="Specifying 'performance-l4' profiles on a 'standard' type is deprecated and will be removed.",
-                    version='2.10'
+                    version='2.6'
                 )
             if self.want.has_fasthttp_profiles:
                 self.want.update({'type': 'performance-http'})
                 self.module.deprecate(
                     msg="Specifying 'performance-http' profiles on a 'standard' type is deprecated and will be removed.",
-                    version='2.10'
+                    version='2.6'
                 )
             if self.want.has_message_routing_profiles:
                 self.want.update({'type': 'message-routing'})
                 self.module.deprecate(
                     msg="Specifying 'message-routing' profiles on a 'standard' type is deprecated and will be removed.",
-                    version='2.10'
+                    version='2.6'
                 )
 
     def _check_source_and_destination_match(self):
@@ -2068,8 +1860,8 @@ class VirtualServerValidator(object):
             F5ModuleError: Raised when the IP versions of source and destination differ.
         """
         if self.want.source and self.want.destination:
-            want = ip_interface(u'{0}'.format(self.want.source))
-            have = ip_interface(u'{0}'.format(self.want.destination_tuple.ip))
+            want = netaddr.IPNetwork(self.want.source)
+            have = netaddr.IPNetwork(self.want.destination_tuple.ip)
             if want.version != have.version:
                 raise F5ModuleError(
                     "The source and destination addresses for the virtual server must be be the same type (IPv4 or IPv6)."
@@ -2350,104 +2142,25 @@ class VirtualServerValidator(object):
         )
 
     def read_dhcp_profiles_from_device(self):
-        result = []
-        result += self.read_dhcpv4_profiles_from_device()
-        result += self.read_dhcpv6_profiles_from_device()
-        return result
-
-    def read_dhcpv4_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/dhcpv4/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [fq_name(self.want.partition, x['name']) for x in response['items']]
-        return result
-
-    def read_dhcpv6_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/dhcpv6/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [fq_name(self.want.partition, x['name']) for x in response['items']]
+        collection = self.client.api.tm.ltm.profile.dhcpv4s.get_collection()
+        result = [fq_name(self.want.partition, x.name) for x in collection]
+        collection = self.client.api.tm.ltm.profile.dhcpv6s.get_collection()
+        result += [fq_name(self.want.partition, x.name) for x in collection]
         return result
 
     def read_fastl4_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/fastl4/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [fq_name(self.want.partition, x['name']) for x in response['items']]
+        collection = self.client.api.tm.ltm.profile.fastl4s.get_collection()
+        result = [fq_name(self.want.partition, x.name) for x in collection]
         return result
 
     def read_fasthttp_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/fasthttp/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [fq_name(self.want.partition, x['name']) for x in response['items']]
+        collection = self.client.api.tm.ltm.profile.fasthttps.get_collection()
+        result = [fq_name(self.want.partition, x.name) for x in collection]
         return result
 
     def read_udp_profiles_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/profile/udp/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        result = [fq_name(self.want.partition, x['name']) for x in response['items']]
+        collection = self.client.api.tm.ltm.profile.udps.get_collection()
+        result = [fq_name(self.want.partition, x.name) for x in collection]
         return result
 
 
@@ -2535,8 +2248,8 @@ class Difference(object):
     def source(self):
         if self.want.source is None:
             return None
-        want = ip_interface(u'{0}'.format(self.want.source))
-        have = ip_interface(u'{0}'.format(self.have.destination_tuple.ip))
+        want = netaddr.IPNetwork(self.want.source)
+        have = netaddr.IPNetwork(self.have.destination_tuple.ip)
         if want.version != have.version:
             raise F5ModuleError(
                 "The source and destination addresses for the virtual server must be be the same type (IPv4 or IPv6)."
@@ -2756,25 +2469,16 @@ class Difference(object):
 
     @property
     def security_log_profiles(self):
-        result = cmp_simple_list(self.want.security_log_profiles, self.have.security_log_profiles)
-        return result
-
-    @property
-    def security_nat_policy(self):
-        result = dict()
-        if self.want.sec_nat_use_device_policy is not None:
-            if self.want.sec_nat_use_device_policy != self.have.sec_nat_use_device_policy:
-                result['use_device_policy'] = self.want.sec_nat_use_device_policy
-        if self.want.sec_nat_use_rd_policy is not None:
-            if self.want.sec_nat_use_rd_policy != self.have.sec_nat_use_rd_policy:
-                result['use_route_domain_policy'] = self.want.sec_nat_use_rd_policy
-        if self.want.sec_nat_policy is not None:
-            if self.want.sec_nat_policy == '' and self.have.sec_nat_policy is None:
-                pass
-            elif self.want.sec_nat_policy != self.have.sec_nat_policy:
-                result['policy'] = self.want.sec_nat_policy
-        if result:
-            return dict(security_nat_policy=result)
+        if self.want.security_log_profiles is None:
+            return None
+        if self.have.security_log_profiles is None and self.want.security_log_profiles == '':
+            return None
+        if self.have.security_log_profiles is not None and self.want.security_log_profiles == '':
+            return []
+        if self.have.security_log_profiles is None:
+            return self.want.security_log_profiles
+        if set(self.want.security_log_profiles) != set(self.have.security_log_profiles):
+            return self.want.security_log_profiles
 
 
 class ModuleManager(object):
@@ -2790,10 +2494,13 @@ class ModuleManager(object):
         result = dict()
         state = self.want.state
 
-        if state in ['present', 'enabled', 'disabled']:
-            changed = self.present()
-        elif state == "absent":
-            changed = self.absent()
+        try:
+            if state in ['present', 'enabled', 'disabled']:
+                changed = self.present()
+            elif state == "absent":
+                changed = self.absent()
+        except iControlUnexpectedHTTPError as e:
+            raise F5ModuleError(str(e))
 
         reportable = ReportableChanges(params=self.changes.to_return())
         changes = reportable.to_return()
@@ -2814,9 +2521,7 @@ class ModuleManager(object):
 
     def update(self):
         self.have = self.read_current_from_device()
-        validator = VirtualServerValidator(
-            module=self.module, client=self.client, have=self.have, want=self.want
-        )
+        validator = VirtualServerValidator(module=self.module, client=self.client, have=self.have, want=self.want)
         validator.check_update()
 
         if not self.should_update():
@@ -2871,24 +2576,14 @@ class ModuleManager(object):
         return False
 
     def exists(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/virtual/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.name)
+        result = self.client.api.tm.ltm.virtuals.virtual.exists(
+            name=self.want.name,
+            partition=self.want.partition
         )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError:
-            return False
-        if resp.status == 404 or 'code' in response and response['code'] == 404:
-            return False
-        return True
+        return result
 
     def create(self):
-        validator = VirtualServerValidator(
-            module=self.module, client=self.client, have=self.have, want=self.want
-        )
+        validator = VirtualServerValidator(module=self.module, client=self.client, have=self.have, want=self.want)
         validator.check_create()
 
         self._set_changed_options()
@@ -2899,81 +2594,42 @@ class ModuleManager(object):
 
     def update_on_device(self):
         params = self.changes.api_params()
-
-        # Mark the resource as managed by Ansible.
-        params = mark_managed_by(self.module.ansible_version, params)
-
-        uri = "https://{0}:{1}/mgmt/tm/ltm/virtual/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.name)
+        resource = self.client.api.tm.ltm.virtuals.virtual.load(
+            name=self.want.name,
+            partition=self.want.partition
         )
-        resp = self.client.api.patch(uri, json=params)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
+        resource.modify(**params)
 
     def read_current_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/virtual/{2}?expandSubcollections=true".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.name)
+        result = self.client.api.tm.ltm.virtuals.virtual.load(
+            name=self.want.name,
+            partition=self.want.partition,
+            requests_params=dict(
+                params=dict(
+                    expandSubcollections='true'
+                )
+            )
         )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-
-        return ApiParameters(params=response, client=self.client)
+        params = result.attrs
+        params.update(dict(kind=result.to_dict().get('kind', None)))
+        result = ApiParameters(params=params, client=self.client)
+        return result
 
     def create_on_device(self):
         params = self.changes.api_params()
-        params['name'] = self.want.name
-        params['partition'] = self.want.partition
-
-        # Mark the resource as managed by Ansible.
-        params = mark_managed_by(self.module.ansible_version, params)
-
-        uri = "https://{0}:{1}/mgmt/tm/ltm/virtual/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port']
+        self.client.api.tm.ltm.virtuals.virtual.create(
+            name=self.want.name,
+            partition=self.want.partition,
+            **params
         )
-        resp = self.client.api.post(uri, json=params)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] in [400, 403]:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
 
     def remove_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/virtual/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.name)
+        resource = self.client.api.tm.ltm.virtuals.virtual.load(
+            name=self.want.name,
+            partition=self.want.partition
         )
-        response = self.client.api.delete(uri)
-        if response.status == 200:
-            return True
-        raise F5ModuleError(response.content)
+        if resource:
+            resource.delete()
 
 
 class ArgumentSpec(object):
@@ -3043,15 +2699,7 @@ class ArgumentSpec(object):
             ),
             firewall_staged_policy=dict(),
             firewall_enforced_policy=dict(),
-            security_log_profiles=dict(type='list'),
-            security_nat_policy=dict(
-                type='dict',
-                options=dict(
-                    policy=dict(),
-                    use_device_policy=dict(type='bool'),
-                    use_route_domain_policy=dict(type='bool')
-                )
-            )
+            security_log_profiles=dict(type='list')
         )
         self.argument_spec = {}
         self.argument_spec.update(f5_argument_spec)
@@ -3069,16 +2717,20 @@ def main():
         supports_check_mode=spec.supports_check_mode,
         mutually_exclusive=spec.mutually_exclusive
     )
+    if not HAS_F5SDK:
+        module.fail_json(msg="The python f5-sdk module is required")
+    if not HAS_NETADDR:
+        module.fail_json(msg="The python netaddr module is required")
 
     try:
-        client = F5RestClient(**module.params)
+        client = F5Client(**module.params)
         mm = ModuleManager(module=module, client=client)
         results = mm.exec_module()
-        exit_json(module, results, client)
         cleanup_tokens(client)
+        module.exit_json(**results)
     except F5ModuleError as ex:
         cleanup_tokens(client)
-        fail_json(module, ex, client)
+        module.fail_json(msg=str(ex))
 
 
 if __name__ == '__main__':

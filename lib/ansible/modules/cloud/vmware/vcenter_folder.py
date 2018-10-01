@@ -79,7 +79,6 @@ EXAMPLES = r'''
     folder_type: vm
     state: present
   register: vm_folder_creation_result
-  delegate_to: localhost
 
 - name: Create a datastore folder on given datacenter
   vcenter_folder:
@@ -91,7 +90,6 @@ EXAMPLES = r'''
     folder_type: datastore
     state: present
   register: datastore_folder_creation_result
-  delegate_to: localhost
 
 - name: Create a sub folder under VM folder on given datacenter
   vcenter_folder:
@@ -103,7 +101,6 @@ EXAMPLES = r'''
     parent_folder: vm_folder
     state: present
   register: sub_folder_creation_result
-  delegate_to: localhost
 
 - name: Delete a VM folder on given datacenter
   vcenter_folder:
@@ -115,7 +112,6 @@ EXAMPLES = r'''
     folder_type: vm
     state: absent
   register: vm_folder_deletion_result
-  delegate_to: localhost
 '''
 
 RETURN = r'''
@@ -128,7 +124,7 @@ result:
 '''
 
 try:
-    from pyVmomi import vim
+    from pyVmomi import vim, vmodl
 except ImportError as e:
     pass
 

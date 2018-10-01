@@ -71,7 +71,11 @@ import argparse
 import ConfigParser
 from collections import defaultdict
 
-import json
+try:
+    import json
+except ImportError:
+    # noinspection PyUnresolvedReferences,PyPackageRequirements
+    import simplejson as json
 
 try:
     # noinspection PyUnresolvedReferences

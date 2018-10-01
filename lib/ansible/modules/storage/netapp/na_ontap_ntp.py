@@ -14,26 +14,26 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = """
 module: na_ontap_ntp
-short_description: NetApp ONTAP NTP server
+short_description: Create/Delete/modify_version ONTAP NTP server
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+author: Suhas Bangalore Shekar (bsuhas@netapp.com), Archana Ganesan (garchana@netapp.com)
 description:
-- Create or delete or modify NTP server in ONTAP
+- Create or delete or modify ntp server in ONTAP
 options:
   state:
     description:
-    - Whether the specified NTP server should exist or not.
+    - Whether the specified ntp server should exist or not.
     choices: ['present', 'absent']
     default: 'present'
   server_name:
     description:
-    - The name of the NTP server to manage.
+    - The name of the ntp server to manage.
     required: True
   version:
     description:
-    - give version for NTP server
+    - give version for ntp server
     choices: ['auto', '3', '4']
     default: 'auto'
 """

@@ -19,7 +19,7 @@ extends_documentation_fragment: ios
 version_added: "2.5"
 short_description: Manage Layer-2 interface on Cisco IOS devices.
 description:
-  - This module provides declarative management of Layer-2 interfaces on
+  - This module provides declarative management of Layer-2 interface on
     Cisco IOS devices.
 author:
   - Nathaniel Case (@qalthos)
@@ -118,7 +118,7 @@ from ansible.module_utils.network.ios.ios import ios_argument_spec
 
 def get_interface_type(interface):
     intf_type = 'unknown'
-    if interface.upper()[:2] in ('ET', 'GI', 'FA', 'TE', 'FO'):
+    if interface.upper()[:2] in ('ET', 'GI'):
         intf_type = 'ethernet'
     elif interface.upper().startswith('VL'):
         intf_type = 'svi'
@@ -303,12 +303,11 @@ def vlan_range_to_list(vlans):
         for part in vlans.split(','):
             if part.lower() == 'none':
                 break
-            if part:
-                if '-' in part:
-                    start, stop = (int(i) for i in part.split('-'))
-                    result.extend(range(start, stop + 1))
-                else:
-                    result.append(int(part))
+            if '-' in part:
+                start, stop = (int(i) for i in part.split('-'))
+                result.extend(range(start, stop + 1))
+            else:
+                result.append(int(part))
     return sorted(result)
 
 

@@ -2,7 +2,6 @@ from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
 import json
-import os
 from ansible.compat.tests.mock import patch
 from ansible.modules.network.cnos import cnos_vlag
 from units.modules.utils import set_module_args
@@ -29,15 +28,18 @@ class TestCnosVlagModule(TestCnosModule):
     def test_cnos_vlag_enable(self):
         set_module_args({'username': 'admin', 'password': 'admin',
                          'host': '10.241.107.39', 'deviceType': 'g8272_cnos',
-                         'outputfile': self.test_log, 'vlagArg1': 'enable'})
+                         'outputfile': 'test.log', 'vlagArg1': 'enable'})
         result = self.execute_module(changed=True)
+        file = open('Anil.txt', "a")
+        file.write(str(result))
+        file.close()
         expected_result = 'VLAG configurations accomplished'
         self.assertEqual(result['msg'], expected_result)
 
     def test_cnos_vlag_instance(self):
         set_module_args({'username': 'admin', 'password': 'pass',
                          'host': '10.241.107.39', 'deviceType': 'g8272_cnos',
-                         'outputfile': self.test_log, 'vlagArg1': 'instance',
+                         'outputfile': 'test.log', 'vlagArg1': 'instance',
                          'vlagArg2': '33', 'vlagArg3': '333'})
         result = self.execute_module(changed=True)
         expected_result = 'VLAG configurations accomplished'
@@ -46,7 +48,7 @@ class TestCnosVlagModule(TestCnosModule):
     def test_cnos_vlag_hlthchk(self):
         set_module_args({'username': 'admin', 'password': 'pass',
                          'host': '10.241.107.39', 'deviceType': 'g8272_cnos',
-                         'outputfile': self.test_log, 'vlagArg1': 'hlthchk',
+                         'outputfile': 'test.log', 'vlagArg1': 'hlthchk',
                          'vlagArg2': 'keepalive-interval', 'vlagArg3': '131'})
         result = self.execute_module(changed=True)
         expected_result = 'VLAG configurations accomplished'

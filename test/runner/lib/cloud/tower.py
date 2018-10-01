@@ -4,13 +4,20 @@ from __future__ import absolute_import, print_function
 import os
 import time
 
+try:
+    # noinspection PyPep8Naming
+    import ConfigParser as configparser
+except ImportError:
+    # noinspection PyUnresolvedReferences
+    import configparser
+
 from lib.util import (
     display,
     ApplicationError,
     is_shippable,
     run_command,
+    generate_password,
     SubprocessError,
-    ConfigParser,
 )
 
 from lib.cloud import (
@@ -20,6 +27,15 @@ from lib.cloud import (
 
 from lib.core_ci import (
     AnsibleCoreCI,
+    InstanceConnection,
+)
+
+from lib.manage_ci import (
+    ManagePosixCI,
+)
+
+from lib.http import (
+    HttpClient,
 )
 
 
@@ -203,7 +219,7 @@ class TowerConfig(object):
         :type path: str
         :rtype: TowerConfig
         """
-        parser = ConfigParser()
+        parser = configparser.RawConfigParser()
         parser.read(path)
 
         keys = (

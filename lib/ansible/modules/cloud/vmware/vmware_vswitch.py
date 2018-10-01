@@ -68,10 +68,11 @@ extends_documentation_fragment:
 
 EXAMPLES = '''
 - name: Add a VMware vSwitch
-  vmware_vswitch:
-    hostname: '{{ esxi_hostname }}'
-    username: '{{ esxi_username }}'
-    password: '{{ esxi_password }}'
+  action:
+    module: vmware_vswitch
+    hostname: esxi_hostname
+    username: esxi_username
+    password: esxi_password
     switch: vswitch_name
     nics: vmnic_name
     mtu: 9000
@@ -79,18 +80,18 @@ EXAMPLES = '''
 
 - name: Add a VMWare vSwitch without any physical NIC attached
   vmware_vswitch:
-    hostname: '{{ esxi_hostname }}'
-    username: '{{ esxi_username }}'
-    password: '{{ esxi_password }}'
+    hostname: 192.168.10.1
+    username: admin
+    password: password123
     switch: vswitch_0001
     mtu: 9000
   delegate_to: localhost
 
 - name: Add a VMWare vSwitch with multiple NICs
   vmware_vswitch:
-    hostname: '{{ esxi_hostname }}'
-    username: '{{ esxi_username }}'
-    password: '{{ esxi_password }}'
+    hostname: esxi_hostname
+    username: esxi_username
+    password: esxi_password
     switch: vmware_vswitch_0004
     nics:
     - vmnic1
@@ -100,9 +101,9 @@ EXAMPLES = '''
 
 - name: Add a VMware vSwitch to a specific host system
   vmware_vswitch:
-    hostname: '{{ esxi_hostname }}'
-    username: '{{ esxi_username }}'
-    password: '{{ esxi_password }}'
+    hostname: 192.168.10.1
+    username: esxi_username
+    password: esxi_password
     esxi_hostname: DC0_H0
     switch_name: vswitch_001
     nic_name: vmnic0
@@ -308,11 +309,16 @@ class VMwareHostVirtualSwitch(PyVmomi):
                 vswitch_pnic_info['num_ports'] != self.number_of_ports:
             diff = True
 
+        if not all_nics:
+            diff = False
+            results['result'] += " as no NICs provided / found which are required while updating vSwitch."
+
         try:
             if diff:
+                # vSwitch needs every parameter again while updating,
+                # even if we are updating any one of them
                 vss_spec = vim.host.VirtualSwitch.Specification()
-                if all_nics:
-                    vss_spec.bridge = vim.host.VirtualSwitch.BondBridge(nicDevice=all_nics)
+                vss_spec.bridge = vim.host.VirtualSwitch.BondBridge(nicDevice=all_nics)
                 vss_spec.numPorts = self.number_of_ports
                 vss_spec.mtu = self.mtu
 

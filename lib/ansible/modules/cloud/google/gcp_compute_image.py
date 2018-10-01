@@ -146,8 +146,7 @@ options:
                 required: false
     source_disk:
         description:
-            - Refers to a gcompute_disk object You must provide either this property or the rawDisk.source
-              property but not both to create an image.
+            - A reference to Disk resource.
         required: false
     source_disk_encryption_key:
         description:
@@ -183,21 +182,24 @@ extends_documentation_fragment: gcp
 EXAMPLES = '''
 - name: create a disk
   gcp_compute_disk:
-      name: "disk-image"
+      name: 'disk-image'
       zone: us-central1-a
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: disk
-
 - name: create a image
   gcp_compute_image:
-      name: "test_object"
+      name: testObject
       source_disk: "{{ disk }}"
-      project: "test_project"
-      auth_kind: "service_account"
-      service_account_file: "/tmp/auth.pem"
+      project: testProject
+      auth_kind: service_account
+      service_account_file: /tmp/auth.pem
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
 '''
 
@@ -362,8 +364,7 @@ RETURN = '''
                 type: str
     source_disk:
         description:
-            - Refers to a gcompute_disk object You must provide either this property or the rawDisk.source
-              property but not both to create an image.
+            - A reference to Disk resource.
         returned: success
         type: dict
     source_disk_encryption_key:
@@ -446,9 +447,6 @@ def main():
         )
     )
 
-    if not module.params['scopes']:
-        module.params['scopes'] = ['https://www.googleapis.com/auth/compute']
-
     state = module.params['state']
     kind = 'compute#image'
 
@@ -497,13 +495,13 @@ def resource_to_request(module):
         u'description': module.params.get('description'),
         u'diskSizeGb': module.params.get('disk_size_gb'),
         u'family': module.params.get('family'),
-        u'guestOsFeatures': ImageGuestOsFeaturesArray(module.params.get('guest_os_features', []), module).to_request(),
-        u'imageEncryptionKey': ImageImageEncryptionKey(module.params.get('image_encryption_key', {}), module).to_request(),
+        u'guestOsFeatures': ImageGuestOsFeatuArray(module.params.get('guest_os_features', []), module).to_request(),
+        u'imageEncryptionKey': ImageImageEncryKey(module.params.get('image_encryption_key', {}), module).to_request(),
         u'licenses': module.params.get('licenses'),
         u'name': module.params.get('name'),
         u'rawDisk': ImageRawDisk(module.params.get('raw_disk', {}), module).to_request(),
         u'sourceDisk': replace_resource_dict(module.params.get(u'source_disk', {}), 'selfLink'),
-        u'sourceDiskEncryptionKey': ImageSourceDiskEncryptionKey(module.params.get('source_disk_encryption_key', {}), module).to_request(),
+        u'sourceDiskEncryptionKey': ImagSourDiskEncrKey(module.params.get('source_disk_encryption_key', {}), module).to_request(),
         u'sourceDiskId': module.params.get('source_disk_id'),
         u'sourceType': module.params.get('source_type')
     }
@@ -579,14 +577,14 @@ def response_to_hash(module, response):
         u'description': response.get(u'description'),
         u'diskSizeGb': response.get(u'diskSizeGb'),
         u'family': response.get(u'family'),
-        u'guestOsFeatures': ImageGuestOsFeaturesArray(response.get(u'guestOsFeatures', []), module).from_response(),
+        u'guestOsFeatures': ImageGuestOsFeatuArray(response.get(u'guestOsFeatures', []), module).from_response(),
         u'id': response.get(u'id'),
-        u'imageEncryptionKey': ImageImageEncryptionKey(response.get(u'imageEncryptionKey', {}), module).from_response(),
+        u'imageEncryptionKey': ImageImageEncryKey(response.get(u'imageEncryptionKey', {}), module).from_response(),
         u'licenses': response.get(u'licenses'),
         u'name': response.get(u'name'),
         u'rawDisk': ImageRawDisk(response.get(u'rawDisk', {}), module).from_response(),
         u'sourceDisk': response.get(u'sourceDisk'),
-        u'sourceDiskEncryptionKey': ImageSourceDiskEncryptionKey(response.get(u'sourceDiskEncryptionKey', {}), module).from_response(),
+        u'sourceDiskEncryptionKey': ImagSourDiskEncrKey(response.get(u'sourceDiskEncryptionKey', {}), module).from_response(),
         u'sourceDiskId': response.get(u'sourceDiskId'),
         u'sourceType': response.get(u'sourceType')
     }
@@ -604,7 +602,7 @@ def async_op_url(module, extra_data=None):
 def wait_for_operation(module, response):
     op_result = return_if_object(module, response, 'compute#operation')
     if op_result is None:
-        return {}
+        return None
     status = navigate_hash(op_result, ['status'])
     wait_done = wait_for_completion(status, op_result, module)
     return fetch_resource(module, navigate_hash(wait_done, ['targetLink']), 'compute#image')
@@ -656,7 +654,7 @@ class ImageDeprecated(object):
         })
 
 
-class ImageGuestOsFeaturesArray(object):
+class ImageGuestOsFeatuArray(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -687,7 +685,7 @@ class ImageGuestOsFeaturesArray(object):
         })
 
 
-class ImageImageEncryptionKey(object):
+class ImageImageEncryKey(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -731,7 +729,7 @@ class ImageRawDisk(object):
         })
 
 
-class ImageSourceDiskEncryptionKey(object):
+class ImagSourDiskEncrKey(object):
     def __init__(self, request, module):
         self.module = module
         if request:

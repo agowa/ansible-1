@@ -28,7 +28,10 @@ version_added: None
 author: Michael Scherer
 '''
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 import os
 import os.path
 import sys

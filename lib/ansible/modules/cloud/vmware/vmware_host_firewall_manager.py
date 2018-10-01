@@ -110,7 +110,7 @@ rule_set_state:
 '''
 
 try:
-    from pyVmomi import vim
+    from pyVmomi import vim, vmodl
 except ImportError:
     pass
 

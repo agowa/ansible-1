@@ -2,7 +2,19 @@
 # coding: utf-8 -*-
 
 # Copyright (c) 2016, Mario Santos <mario.rf.santos@gmail.com>
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+#
+# This module is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This software is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this software.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -30,6 +42,8 @@ options:
    display_description:
      description:
        - String describing the snapshot
+     required: false
+     default: null
      aliases: ['description']
    volume:
      description:
@@ -39,8 +53,9 @@ options:
      description:
        - Allows or disallows snapshot of a volume to be created when the volume
          is attached to an instance.
+     required: false
+     default: False
      type: bool
-     default: 'no'
    state:
      description:
        - Should the resource be present or absent.
@@ -49,6 +64,7 @@ options:
    availability_zone:
      description:
        - Availability zone in which to create the snapshot.
+     required: false
 requirements:
      - "python >= 2.7"
      - "openstacksdk"

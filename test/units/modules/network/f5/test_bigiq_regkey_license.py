@@ -100,7 +100,7 @@ class TestManager(unittest.TestCase):
             license_key='XXXX-XXXX-XXXX-XXXX-XXXX',
             accept_eula=True,
             description='this is a description',
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))

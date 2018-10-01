@@ -139,7 +139,7 @@ class ModuleManager(object):
         self.want = Parameters(params=self.module.params)
         self.changes = Parameters()
 
-    def _update_changed_options(self):  # lgtm [py/similar-function]
+    def _update_changed_options(self):
         changed = {}
         for key in Parameters.updatables:
             if getattr(self.want, key) is not None:
@@ -165,7 +165,7 @@ class ModuleManager(object):
             return True
         return False
 
-    def exec_module(self):  # lgtm [py/similar-function]
+    def exec_module(self):
         changed = False
         result = dict()
         state = self.want.state

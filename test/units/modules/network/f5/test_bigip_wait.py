@@ -101,7 +101,7 @@ class TestManager(unittest.TestCase):
 
     def test_wait_already_available(self, *args):
         set_module_args(dict(
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))

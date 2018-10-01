@@ -303,22 +303,22 @@ class ZipArchive(object):
         run_gid = os.getgid()
         try:
             run_owner = pwd.getpwuid(run_uid).pw_name
-        except (TypeError, KeyError):
+        except:
             run_owner = run_uid
         try:
             run_group = grp.getgrgid(run_gid).gr_name
-        except (KeyError, ValueError, OverflowError):
+        except:
             run_group = run_gid
 
         # Get future user ownership
         fut_owner = fut_uid = None
         if self.file_args['owner']:
             try:
-                tpw = pwd.getpwnam(self.file_args['owner'])
-            except KeyError:
+                tpw = pwd.getpwname(self.file_args['owner'])
+            except:
                 try:
                     tpw = pwd.getpwuid(self.file_args['owner'])
-                except (TypeError, KeyError):
+                except:
                     tpw = pwd.getpwuid(run_uid)
             fut_owner = tpw.pw_name
             fut_uid = tpw.pw_uid
@@ -334,10 +334,10 @@ class ZipArchive(object):
         if self.file_args['group']:
             try:
                 tgr = grp.getgrnam(self.file_args['group'])
-            except (ValueError, KeyError):
+            except:
                 try:
                     tgr = grp.getgrgid(self.file_args['group'])
-                except (KeyError, ValueError, OverflowError):
+                except:
                     tgr = grp.getgrgid(run_gid)
             fut_group = tgr.gr_name
             fut_gid = tgr.gr_gid
@@ -528,7 +528,7 @@ class ZipArchive(object):
             owner = uid = None
             try:
                 owner = pwd.getpwuid(st.st_uid).pw_name
-            except (TypeError, KeyError):
+            except:
                 uid = st.st_uid
 
             # If we are not root and requested owner is not our user, fail
@@ -548,7 +548,7 @@ class ZipArchive(object):
             group = gid = None
             try:
                 group = grp.getgrgid(st.st_gid).gr_name
-            except (KeyError, ValueError, OverflowError):
+            except:
                 gid = st.st_gid
 
             if run_uid != 0 and fut_gid not in groups:

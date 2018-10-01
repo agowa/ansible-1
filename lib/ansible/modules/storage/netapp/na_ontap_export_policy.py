@@ -13,11 +13,11 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 module: na_ontap_export_policy
-short_description: NetApp ONTAP manage export-policy
+short_description: Manage NetApp ONTAP export-policy
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+author: Archana Ganesan (garchana@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)
 description:
 - Create or destroy or rename export-policies on ONTAP
 options:
@@ -30,10 +30,9 @@ options:
     description:
     - The name of the export-policy to manage.
     required: true
-  from_name:
+  new_name:
     description:
     - The name of the export-policy to be renamed.
-    version_added: '2.7'
   vserver:
     description:
     - Name of the vserver to use.
@@ -51,9 +50,9 @@ EXAMPLES = """
     - name: Rename Export Policy
       na_ontap_export_policy:
         action: present
-        from_name: ansiblePolicyName
+        name: ansiblePolicyName
         vserver: vs_hack
-        name: newPolicyName
+        new_name: newPolicyName
         hostname: "{{ netapp_hostname }}"
         username: "{{ netapp_username }}"
         password: "{{ netapp_password }}"
@@ -89,7 +88,7 @@ class NetAppONTAPExportPolicy(object):
         self.argument_spec.update(dict(
             state=dict(required=False, type='str', choices=['present', 'absent'], default='present'),
             name=dict(required=True, type='str'),
-            from_name=dict(required=False, type='str', default=None),
+            new_name=dict(required=False, type='str', default=None),
             vserver=dict(required=False, type='str')
         ))
         self.module = AnsibleModule(
@@ -103,7 +102,7 @@ class NetAppONTAPExportPolicy(object):
         # set up state variables
         self.state = parameters['state']
         self.name = parameters['name']
-        self.from_name = parameters['from_name']
+        self.new_name = parameters['new_name']
         self.vserver = parameters['vserver']
 
         if HAS_NETAPP_LIB is False:
@@ -111,7 +110,7 @@ class NetAppONTAPExportPolicy(object):
         else:
             self.server = netapp_utils.setup_na_ontap_zapi(module=self.module, vserver=self.vserver)
 
-    def get_export_policy(self, name=None):
+    def get_export_policy(self):
         """
         Return details about the export-policy
         :param:
@@ -119,11 +118,9 @@ class NetAppONTAPExportPolicy(object):
         :return: Details about the export-policy. None if not found.
         :rtype: dict
         """
-        if name is None:
-            name = self.name
         export_policy_iter = netapp_utils.zapi.NaElement('export-policy-get-iter')
         export_policy_info = netapp_utils.zapi.NaElement('export-policy-info')
-        export_policy_info.add_new_child('policy-name', name)
+        export_policy_info.add_new_child('policy-name', self.name)
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(export_policy_info)
         export_policy_iter.add_child_elem(query)
@@ -172,8 +169,8 @@ class NetAppONTAPExportPolicy(object):
         Rename the export-policy.
         """
         export_policy_rename = netapp_utils.zapi.NaElement.create_node_with_children(
-            'export-policy-rename', **{'policy-name': self.from_name,
-                                       'new-policy-name': self.name})
+            'export-policy-rename', **{'policy-name': self.name,
+                                       'new-policy-name': self.new_name})
         try:
             self.server.invoke_successfully(export_policy_rename,
                                             enable_tunneling=True)
@@ -193,29 +190,29 @@ class NetAppONTAPExportPolicy(object):
         export_policy_details = self.get_export_policy()
         if export_policy_details:
             export_policy_exists = True
-            if self.state == 'absent':  # delete
-                changed = True
-        else:
-            if self.state == 'present':  # create or rename
-                if self.from_name is not None:
-                    if self.get_export_policy(self.from_name):
+            if self.state == 'present':
+                if self.new_name is not None:
+                    if self.new_name != self.name and self.new_name != export_policy_details['policy-name']:  # rename
                         changed = True
                         rename_flag = True
-                    else:
-                        self.module.fail_json(msg='Error renaming export-policy %s: does not exists' % self.from_name)
-                else:  # create
-                    changed = True
+            elif self.state == 'absent':  # delete
+                changed = True
+        else:
+            if self.state == 'present':  # create
+                changed = True
         if changed:
             if self.module.check_mode:
                 pass
             else:
-                if self.state == 'present':  # execute create or rename_export_policy
-                    if rename_flag:
-                        self.rename_export_policy()
-                    else:
+                if self.state == 'present':  # execute create
+                    if not export_policy_exists:
                         self.create_export_policy()
+                    else:  # execute rename
+                        if rename_flag:
+                            self.rename_export_policy()
                 elif self.state == 'absent':  # execute delete
                     self.delete_export_policy()
+
         self.module.exit_json(changed=changed)
 
 

@@ -24,7 +24,6 @@
        resource_group: "{{ resource_group }}" 
        name: "{{ storage_account }}"
        account_type: Standard_LRS
-       append_tags: no
        tags:
            test: test
            galaxy: galaxy
@@ -73,7 +72,6 @@
    azure_rm_storageaccount:
        resource_group: "{{ resource_group }}"
        name: "{{ storage_account }}"
-       append_tags: no
        tags:
            testing: testing
            delete: never
@@ -89,7 +87,6 @@
    azure_rm_storageaccount:
        resource_group: "{{ resource_group }}"
        name: "{{ storage_account }}"
-       append_tags: no
        tags:
            testing: testing
            delete: never

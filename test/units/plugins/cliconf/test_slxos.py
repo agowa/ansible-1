@@ -111,8 +111,7 @@ class TestPluginCLIConfSLXOS(unittest.TestCase):
                 command=command,
                 prompt_retry_check=False,
                 sendonly=False,
-                newline=True,
-                check_all=False
+                newline=True
             ))
 
         self._mock_connection.send.assert_has_calls(send_calls)

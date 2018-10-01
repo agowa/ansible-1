@@ -71,10 +71,6 @@ options:
     description:
       - Domain the account is related to.
     default: 'ROOT'
-  role:
-    description:
-      - Creates the account under the specified role name or id.
-    version_added: 2.8
   state:
     description:
       - State of the account.
@@ -100,7 +96,6 @@ EXAMPLES = '''
     first_name: John
     email: john.doe@example.com
     domain: CUSTOMERS
-    role: Domain Admin
 
 # Lock an existing account in domain 'CUSTOMERS'
 - local_action:
@@ -163,11 +158,6 @@ domain:
   returned: success
   type: string
   sample: ROOT
-role:
-  description: The role name of the account
-  returned: success
-  type: string
-  sample: Domain Admin
 '''
 
 # import cloudstack common
@@ -185,7 +175,6 @@ class AnsibleCloudStackAccount(AnsibleCloudStack):
         super(AnsibleCloudStackAccount, self).__init__(module)
         self.returns = {
             'networkdomain': 'network_domain',
-            'rolename': 'role',
         }
         self.account = None
         self.account_types = {
@@ -193,21 +182,6 @@ class AnsibleCloudStackAccount(AnsibleCloudStack):
             'root_admin': 1,
             'domain_admin': 2,
         }
-
-    def get_role_id(self):
-        role_param = self.module.params.get('role')
-        role_id = None
-
-        if role_param:
-            role_list = self.query_api('listRoles')
-            for role in role_list['role']:
-                if role_param in [role['name'], role['id']]:
-                    role_id = role['id']
-
-            if not role_id:
-                self.module.fail_json(msg="Role not found: %s" % role_param)
-
-        return role_id
 
     def get_account_type(self):
         account_type = self.module.params.get('account_type')
@@ -304,8 +278,7 @@ class AnsibleCloudStackAccount(AnsibleCloudStack):
                 'firstname': self.module.params.get('first_name'),
                 'lastname': self.module.params.get('last_name'),
                 'email': self.module.params.get('email'),
-                'timezone': self.module.params.get('timezone'),
-                'roleid': self.get_role_id()
+                'timezone': self.module.params.get('timezone')
             }
             if not self.module.check_mode:
                 res = self.query_api('createAccount', **args)
@@ -350,7 +323,6 @@ def main():
         username=dict(),
         password=dict(no_log=True),
         timezone=dict(),
-        role=dict(),
         poll_async=dict(type='bool', default=True),
     ))
 

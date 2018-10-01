@@ -75,6 +75,7 @@ synchronize_zone_files:
 '''
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import env_fallback
 
 try:
     from library.module_utils.network.f5.bigip import HAS_F5SDK
@@ -82,6 +83,7 @@ try:
     from library.module_utils.network.f5.common import F5ModuleError
     from library.module_utils.network.f5.common import AnsibleF5Parameters
     from library.module_utils.network.f5.common import cleanup_tokens
+    from library.module_utils.network.f5.common import fq_name
     from library.module_utils.network.f5.common import f5_argument_spec
     try:
         from library.module_utils.network.f5.common import iControlUnexpectedHTTPError
@@ -93,6 +95,7 @@ except ImportError:
     from ansible.module_utils.network.f5.common import F5ModuleError
     from ansible.module_utils.network.f5.common import AnsibleF5Parameters
     from ansible.module_utils.network.f5.common import cleanup_tokens
+    from ansible.module_utils.network.f5.common import fq_name
     from ansible.module_utils.network.f5.common import f5_argument_spec
     try:
         from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
@@ -248,7 +251,7 @@ class ModuleManager(object):
             return True
         return False
 
-    def exec_module(self):  # lgtm [py/similar-function]
+    def exec_module(self):
         result = dict()
 
         try:

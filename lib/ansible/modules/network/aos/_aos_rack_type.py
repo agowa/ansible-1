@@ -87,7 +87,6 @@ EXAMPLES = '''
     name: "my-rack-type"
     state: present
   register: rack_type
-
 - name: "Save Rack Type into a JSON file 2/3"
   copy:
     content: "{{ rack_type.value | to_nice_json }}"

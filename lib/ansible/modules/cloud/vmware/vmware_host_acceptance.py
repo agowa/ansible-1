@@ -103,7 +103,7 @@ facts:
 '''
 
 try:
-    from pyVmomi import vim
+    from pyVmomi import vim, vmodl
 except ImportError:
     pass
 from ansible.module_utils.basic import AnsibleModule

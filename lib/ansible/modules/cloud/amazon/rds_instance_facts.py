@@ -40,7 +40,7 @@ extends_documentation_fragment:
 EXAMPLES = '''
 # Get facts about an instance
 - rds_instance_facts:
-    db_instance_identifier: new-database
+    name: new-database
   register: new_database_facts
 
 # Get all RDS instances

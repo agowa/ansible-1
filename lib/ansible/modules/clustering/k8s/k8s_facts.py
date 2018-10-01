@@ -101,7 +101,7 @@ EXAMPLES = '''
 '''
 
 RETURN = '''
-resources:
+items:
   description:
   - The object(s) that exists
   returned: success

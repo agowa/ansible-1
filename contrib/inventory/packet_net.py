@@ -55,7 +55,10 @@ except ImportError as e:
 import traceback
 
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 
 ini_section = 'packet'

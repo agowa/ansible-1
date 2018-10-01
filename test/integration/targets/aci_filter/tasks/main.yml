@@ -17,7 +17,6 @@
     validate_certs: '{{ aci_validate_certs | default(false) }}'
     use_ssl: '{{ aci_use_ssl | default(true) }}'
     use_proxy: '{{ aci_use_proxy | default(true) }}'
-    output_level: '{{ aci_output_level | default("info") }}'
     tenant: ansible_test
     state: present
 
@@ -29,7 +28,6 @@
     validate_certs: '{{ aci_validate_certs | default(false) }}'
     use_ssl: '{{ aci_use_ssl | default(true) }}'
     use_proxy: '{{ aci_use_proxy | default(true) }}'
-    output_level: '{{ aci_output_level | default("info") }}'
     tenant: ansible_test
     filter: filter_test
     state: absent
@@ -43,7 +41,6 @@
     validate_certs: '{{ aci_validate_certs | default(false) }}'
     use_ssl: '{{ aci_use_ssl | default(true) }}'
     use_proxy: '{{ aci_use_proxy | default(true) }}'
-    output_level: '{{ aci_output_level | default("info") }}'
     tenant: ansible_test
     filter: filter_test
     state: present
@@ -66,10 +63,10 @@
 - name: Verify add_filter
   assert:
     that:
-    - cm_add_filter is changed
-    - cm_add_filter_again is changed
-    - nm_add_filter is changed
-    - nm_add_filter_again is not changed
+    - cm_add_filter.changed == true
+    - cm_add_filter_again.changed == true
+    - nm_add_filter.changed == true
+    - nm_add_filter_again.changed == false
 
 # CHANGE FILTER
 - name: Change description of filter (check_mode)
@@ -101,10 +98,10 @@
 - name: Verify add_filter_descr
   assert:
     that:
-    - cm_add_filter_descr is changed
-    - cm_add_filter_descr_again is changed
-    - nm_add_filter_descr is changed
-    - nm_add_filter_descr_again is not changed
+    - cm_add_filter_descr.changed == true
+    - cm_add_filter_descr_again.changed == true
+    - nm_add_filter_descr.changed == true
+    - nm_add_filter_descr_again.changed == false
 
 # ADD FILTER AGAIN
 - name: Add filter again with no description (check_mode)
@@ -119,8 +116,8 @@
 - name: Verify add_filter_again_no_descr
   assert:
     that:
-    - cm_add_filter_again_no_descr is not changed
-    - nm_add_filter_again_no_descr is not changed
+    - cm_add_filter_again_no_descr.changed == false
+    - nm_add_filter_again_no_descr.changed == false
 
 # QUERY ALL FILTERS
 - name: Query all filters (check_mode)
@@ -131,7 +128,6 @@
     validate_certs: '{{ aci_validate_certs | default(false) }}'
     use_ssl: '{{ aci_use_ssl | default(true) }}'
     use_proxy: '{{ aci_use_proxy | default(true) }}'
-    output_level: '{{ aci_output_level | default("info") }}'
     state: query
   check_mode: yes
   register: cm_query_all_filters
@@ -143,8 +139,8 @@
 - name: Verify query_all_filters
   assert:
     that:
-    - cm_query_all_filters is not changed
-    - nm_query_all_filters is not changed
+    - cm_query_all_filters.changed == false
+    - nm_query_all_filters.changed == false
     # NOTE: Order of filters is not stable between calls
     #- cm_query_all_filters == nm_query_all_filters
 
@@ -167,8 +163,8 @@
 - name: Verify query_filter
   assert:
     that:
-    - cm_query_filter is not changed
-    - nm_query_filter is not changed
+    - cm_query_filter.changed == false
+    - nm_query_filter.changed == false
     - cm_query_filter == nm_query_filter
 
 # REMOVE FILTER
@@ -193,10 +189,10 @@
 - name: Verify remove_filter
   assert:
     that:
-    - cm_remove_filter is changed
-    - cm_remove_filter_again is changed
-    - nm_remove_filter is changed
-    - nm_remove_filter_again is not changed
+    - cm_remove_filter.changed == true
+    - cm_remove_filter_again.changed == true
+    - nm_remove_filter.changed == true
+    - nm_remove_filter_again.changed == false
 
 # QUERY NON-EXISTING FILTER
 # FIXME: Should this fail or return empty values ?
@@ -218,6 +214,6 @@
 - name: Verify query_non_filter
   assert:
     that:
-    - cm_query_non_filter is not changed
-    - nm_query_non_filter is not changed
+    - cm_query_non_filter.changed == false
+    - nm_query_non_filter.changed == false
     - cm_query_non_filter == nm_query_non_filter

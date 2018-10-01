@@ -16,11 +16,11 @@ DOCUMENTATION = '''
 
 module: na_ontap_export_policy_rule
 
-short_description: NetApp ONTAP manage export policy rules
+short_description: Manage ONTAP Export rules
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+author: Suhas Bangalore Shekar (bsuhas@netapp.com), Archana Ganeshan (garchana@netapp.com)
 
 description:
 - Create or delete or modify export rules in ONTAP
@@ -59,8 +59,8 @@ options:
 
   allow_suid:
     description:
-    - If 'true', NFS server will honor SetUID bits in SETATTR operation. Default value on creation is 'true'
-    type: bool
+    - If 'true', NFS server will honor SetUID bits in SETATTR operation. Default value is 'true'
+    choices: ['True', 'False']
 
   protocol:
     description:
@@ -155,8 +155,8 @@ class NetAppontapExportRule(object):
             super_user_security=dict(required=False,
                                      type='str', default=None,
                                      choices=['any', 'none', 'never', 'krb5', 'krb5i', 'krb5p', 'ntlm', 'sys']),
-            allow_suid=dict(required=False, type='bool'),
-            rule_index=dict(required=False, type='int'),
+            allow_suid=dict(required=False, choices=['True', 'False']),
+            rule_index=dict(required=False, type='int', default=None),
             vserver=dict(required=True, type='str'),
         ))
 
@@ -178,7 +178,6 @@ class NetAppontapExportRule(object):
         self.client_match = parameters['client_match']
         self.ro_rule = parameters['ro_rule']
         self.rw_rule = parameters['rw_rule']
-        self.rule_index = parameters['rule_index']
         self.allow_suid = parameters['allow_suid']
         self.vserver = parameters['vserver']
         self.super_user_security = parameters['super_user_security']
@@ -203,9 +202,9 @@ class NetAppontapExportRule(object):
         rule_info.add_new_child('policy-name', self.policy_name)
         if self.vserver:
             rule_info.add_new_child('vserver-name', self.vserver)
-
-        if self.client_match:
-            rule_info.add_new_child('client-match', self.client_match)
+        else:
+            if self.client_match:
+                rule_info.add_new_child('client-match', self.client_match)
 
         query = netapp_utils.zapi.NaElement('query')
         query.add_child_elem(rule_info)
@@ -231,8 +230,8 @@ class NetAppontapExportRule(object):
                 'rw-rule').get_child_content('security-flavor')
             export_rule_super_user_security = export_policy_rule_details.get_child_by_name(
                 'super-user-security').get_child_content('security-flavor')
-            export_rule_allow_suid = True if export_policy_rule_details.get_child_content(
-                'is-allow-set-uid-enabled') == 'true' else False
+            export_rule_allow_suid = export_policy_rule_details.get_child_content(
+                'is-allow-set-uid-enabled')
             export_rule_client_match = export_policy_rule_details.get_child_content(
                 'client-match')
             export_vserver = export_policy_rule_details.get_child_content(
@@ -254,7 +253,6 @@ class NetAppontapExportRule(object):
             return_value = {
                 'policy-name': self.policy_name
             }
-
         return return_value
 
     def get_export_policy(self):
@@ -298,14 +296,17 @@ class NetAppontapExportRule(object):
         """
         create rule for the export policy.
         """
-        options = {'policy-name': self.policy_name,
-                   'client-match': self.client_match}
         if self.allow_suid is not None:
-            options['is-allow-set-uid-enabled'] = 'true' if self.allow_suid else 'false'
-        if self.rule_index is not None:
-            options['rule-index'] = str(self.rule_index)
-        export_rule_create = netapp_utils.zapi.NaElement.create_node_with_children(
-            'export-rule-create', **options)
+            export_rule_create = netapp_utils.zapi.NaElement.create_node_with_children(
+                'export-rule-create', **{'policy-name': self.policy_name,
+                                         'client-match': self.client_match,
+                                         'is-allow-set-uid-enabled': str(self.allow_suid)
+                                         })
+        else:
+            export_rule_create = netapp_utils.zapi.NaElement.create_node_with_children(
+                'export-rule-create', **{'policy-name': self.policy_name,
+                                         'client-match': self.client_match
+                                         })
         export_rule_create.add_node_with_children(
             'ro-rule', **{'security-flavor': self.ro_rule})
         export_rule_create.add_node_with_children(
@@ -423,22 +424,6 @@ class NetAppontapExportRule(object):
             self.module.fail_json(msg='Error modifying super_user_security %s: %s' % (self.super_user_security, to_native(error)),
                                   exception=traceback.format_exc())
 
-    def modify_client_match(self, rule_index):
-        """
-        Modify client_match.
-        """
-        export_rule_modify_client_match = netapp_utils.zapi.NaElement.create_node_with_children(
-            'export-rule-modify',
-            **{'policy-name': self.policy_name,
-               'rule-index': rule_index,
-               'client-match': str(self.client_match)})
-        try:
-            self.server.invoke_successfully(export_rule_modify_client_match,
-                                            enable_tunneling=True)
-        except netapp_utils.zapi.NaApiError as error:
-            self.module.fail_json(msg='Error modifying client_match %s: %s' % (self.client_match, to_native(error)),
-                                  exception=traceback.format_exc())
-
     def modify_allow_suid(self, rule_index):
         """
         Modify allow_suid.
@@ -447,7 +432,7 @@ class NetAppontapExportRule(object):
             'export-rule-modify',
             **{'policy-name': self.policy_name,
                'rule-index': rule_index,
-               'is-allow-set-uid-enabled': 'true' if self.allow_suid else 'false'})
+               'is-allow-set-uid-enabled': str(self.allow_suid)})
         try:
             self.server.invoke_successfully(export_rule_modify_allow_suid,
                                             enable_tunneling=True)
@@ -481,28 +466,28 @@ class NetAppontapExportRule(object):
             if export_policy_rule_exists:  # modify
                 rule_index = export_policy_rule_exists['rule-index']
                 if rule_index:
-                    if self.protocol is not None and \
-                            export_policy_rule_exists['protocol'] != self.protocol:
+                    if (self.protocol is not None) and \
+                            (export_policy_rule_exists['protocol'] != self.protocol):
                         export_rule_protocol_changed = True
                         changed = True
                     if self.ro_rule is not None and \
-                            export_policy_rule_exists['ro-rule'] != self.ro_rule:
+                            (export_policy_rule_exists['ro-rule'] != self.ro_rule):
                         export_rule_ro_rule_changed = True
                         changed = True
                     if self.rw_rule is not None and \
-                            export_policy_rule_exists['rw-rule'] != self.rw_rule:
+                            (export_policy_rule_exists['rw-rule'] != self.rw_rule):
                         export_rule_rw_rule_changed = True
                         changed = True
-                    if self.allow_suid is not None and \
-                            export_policy_rule_exists['is-allow-set-uid-enabled'] != self.allow_suid:
+                    if (self.allow_suid is not None) and \
+                            (export_policy_rule_exists['is-allow-set-uid-enabled'] != self.allow_suid):
                         export_rule_allow_suid_enabled = True
                         changed = True
-                    if self.super_user_security is not None and \
-                            export_policy_rule_exists['super-user-security'] != self.super_user_security:
+                    if (self.super_user_security is not None) and \
+                            (export_policy_rule_exists['super-user-security'] != self.super_user_security):
                         export_rule_superuser_changed = True
                         changed = True
                     if self.client_match is not None and \
-                            export_policy_rule_exists['client-match'] != self.client_match:
+                            (export_policy_rule_exists['client-match'] != self.client_match):
                         export_rule_clientmatch_changed = True
                         changed = True
             else:  # create
@@ -515,17 +500,17 @@ class NetAppontapExportRule(object):
                     if not export_policy_rule_exists:
                         self.create_export_policy_rule()
                     else:
-                        if export_rule_protocol_changed:
+                        if export_rule_protocol_changed is True:
                             self.modify_protocol(rule_index)
-                        if export_rule_ro_rule_changed:
+                        if export_rule_ro_rule_changed is True:
                             self.modify_ro_rule(rule_index)
-                        if export_rule_rw_rule_changed:
+                        if export_rule_rw_rule_changed is True:
                             self.modify_rw_rule(rule_index)
-                        if export_rule_allow_suid_enabled:
+                        if export_rule_allow_suid_enabled is True:
                             self.modify_allow_suid(rule_index)
-                        if export_rule_clientmatch_changed:
+                        if export_rule_clientmatch_changed is True:
                             self.modify_client_match(rule_index)
-                        if export_rule_superuser_changed:
+                        if export_rule_superuser_changed is True:
                             self.modify_super_user_security(rule_index)
                 elif self.state == 'absent':
                     self.delete_export_policy_rule(rule_index)

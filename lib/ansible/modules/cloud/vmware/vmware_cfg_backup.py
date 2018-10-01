@@ -51,21 +51,23 @@ extends_documentation_fragment: vmware.documentation
 '''
 
 EXAMPLES = '''
-- name: Save the ESXi configuration locally by authenticating directly against the ESXi host
+# save the ESXi configuration locally by authenticating directly against the ESXi host
+- name: ESXI backup test
   vmware_cfg_backup:
-    hostname: '{{ esxi_hostname }}'
-    username: '{{ esxi_username }}'
-    password: '{{ esxi_password }}'
+    hostname: esxi_hostname
+    username: user
+    password: pass
     state: saved
     dest: /tmp/
   delegate_to: localhost
 
-- name: Save the ESXi configuration locally by authenticating against the vCenter and selecting the ESXi host
+# save the ESXi configuration locally by authenticating against the vCenter and selecting the ESXi host
+- name: ESXI backup test
   vmware_cfg_backup:
-    hostname: '{{ vcenter_hostname }}'
-    esxi_hostname: '{{ esxi_hostname }}'
-    username: '{{ esxi_username }}'
-    password: '{{ esxi_password }}'
+    hostname: vCenter
+    esxi_hostname: esxi_hostname
+    username: user
+    password: pass
     state: saved
     dest: /tmp/
   delegate_to: localhost
@@ -81,7 +83,7 @@ dest_file:
 
 import os
 try:
-    from pyVmomi import vim
+    from pyVmomi import vim, vmodl
 except ImportError:
     pass
 

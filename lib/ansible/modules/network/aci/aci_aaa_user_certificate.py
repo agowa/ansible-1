@@ -62,7 +62,6 @@ EXAMPLES = r'''
     certificate_name: admin
     certificate_data: '{{ lookup("file", "pki/admin.crt") }}'
     state: present
-  delegate_to: localhost
 
 - name: Remove a certificate of a user
   aci_aaa_user_certificate:
@@ -72,7 +71,6 @@ EXAMPLES = r'''
     aaa_user: admin
     certificate_name: admin
     state: absent
-  delegate_to: localhost
 
 - name: Query a certificate of a user
   aci_aaa_user_certificate:
@@ -82,8 +80,6 @@ EXAMPLES = r'''
     aaa_user: admin
     certificate_name: admin
     state: query
-  delegate_to: localhost
-  register: query_result
 
 - name: Query all certificates of a user
   aci_aaa_user_certificate:
@@ -92,8 +88,6 @@ EXAMPLES = r'''
     password: SomeSecretPassword
     aaa_user: admin
     state: query
-  delegate_to: localhost
-  register: query_result
 '''
 
 RETURN = r'''
@@ -246,14 +240,14 @@ def main():
         root_class=dict(
             aci_class=ACI_MAPPING[aaa_user_type]['aci_class'],
             aci_rn=ACI_MAPPING[aaa_user_type]['aci_mo'] + aaa_user,
+            filter_target='eq({0}.name, "{1}")'.format(ACI_MAPPING[aaa_user_type]['aci_class'], aaa_user),
             module_object=aaa_user,
-            target_filter={'name': aaa_user},
         ),
         subclass_1=dict(
             aci_class='aaaUserCert',
             aci_rn='usercert-{0}'.format(certificate_name),
+            filter_target='eq(aaaUserCert.name, "{0}")'.format(certificate_name),
             module_object=certificate_name,
-            target_filter={'name': certificate_name},
         ),
     )
     aci.get_existing()

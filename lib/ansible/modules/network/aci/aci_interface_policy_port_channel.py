@@ -104,7 +104,6 @@ EXAMPLES = r'''
     min_links: '{{ min_links }}'
     max_links: '{{ max_links }}'
     mode: '{{ mode }}'
-  delegate_to: localhost
 '''
 
 RETURN = r'''
@@ -274,8 +273,8 @@ def main():
         root_class=dict(
             aci_class='lacpLagPol',
             aci_rn='infra/lacplagp-{0}'.format(port_channel),
+            filter_target='eq(lacpLagPol.name, "{0}")'.format(port_channel),
             module_object=port_channel,
-            target_filter={'name': port_channel},
         ),
     )
 

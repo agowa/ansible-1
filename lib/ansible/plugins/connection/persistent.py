@@ -34,12 +34,12 @@ import pty
 import json
 import subprocess
 import sys
-import termios
 
 from ansible import constants as C
 from ansible.plugins.connection import ConnectionBase
 from ansible.module_utils._text import to_text
-from ansible.module_utils.connection import Connection as SocketConnection, write_to_file_descriptor
+from ansible.module_utils.six.moves import cPickle
+from ansible.module_utils.connection import Connection as SocketConnection
 from ansible.errors import AnsibleError
 
 try:
@@ -109,24 +109,26 @@ class Connection(ConnectionBase):
             [python, find_file_in_path('ansible-connection'), to_text(os.getppid())],
             stdin=slave, stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
+        stdin = os.fdopen(master, 'wb', 0)
         os.close(slave)
 
-        # We need to set the pty into noncanonical mode. This ensures that we
-        # can receive lines longer than 4095 characters (plus newline) without
-        # truncating.
-        old = termios.tcgetattr(master)
-        new = termios.tcgetattr(master)
-        new[3] = new[3] & ~termios.ICANON
+        # Need to force a protocol that is compatible with both py2 and py3.
+        # That would be protocol=2 or less.
+        # Also need to force a protocol that excludes certain control chars as
+        # stdin in this case is a pty and control chars will cause problems.
+        # that means only protocol=0 will work.
+        src = cPickle.dumps(self._play_context.serialize(), protocol=0)
+        stdin.write(src)
+        stdin.write(b'\n#END_INIT#\n')
 
-        try:
-            termios.tcsetattr(master, termios.TCSANOW, new)
-            write_to_file_descriptor(master, {'ansible_command_timeout': self.get_option('persistent_command_timeout')})
-            write_to_file_descriptor(master, self._play_context.serialize())
+        src = cPickle.dumps({'ansible_command_timeout': self.get_option('persistent_command_timeout')}, protocol=0)
+        stdin.write(src)
+        stdin.write(b'\n#END_VARS#\n')
 
-            (stdout, stderr) = p.communicate()
-        finally:
-            termios.tcsetattr(master, termios.TCSANOW, old)
-        os.close(master)
+        stdin.flush()
+
+        (stdout, stderr) = p.communicate()
+        stdin.close()
 
         if p.returncode == 0:
             result = json.loads(to_text(stdout, errors='surrogate_then_replace'))

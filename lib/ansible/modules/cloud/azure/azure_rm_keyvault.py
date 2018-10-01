@@ -152,7 +152,6 @@ options:
 
 extends_documentation_fragment:
     - azure
-    - azure_tags
 
 author:
     - "Zim Kalinowski (@zikalino)"
@@ -266,7 +265,6 @@ class AzureRMVaults(AzureRMModuleBase):
         self.resource_group = None
         self.vault_name = None
         self.parameters = dict()
-        self.tags = None
 
         self.results = dict(changed=False)
         self.mgmt_client = None
@@ -275,14 +273,14 @@ class AzureRMVaults(AzureRMModuleBase):
 
         super(AzureRMVaults, self).__init__(derived_arg_spec=self.module_arg_spec,
                                             supports_check_mode=True,
-                                            supports_tags=True,
+                                            supports_tags=False,
                                             required_if=self.module_required_if)
 
     def exec_module(self, **kwargs):
         """Main module execution method"""
 
         # translate Ansible input to SDK-formatted dict in self.parameters
-        for key in list(self.module_arg_spec.keys()) + ['tags']:
+        for key in list(self.module_arg_spec.keys()):
             if hasattr(self, key):
                 setattr(self, key, kwargs[key])
             elif kwargs[key] is not None:
@@ -393,20 +391,12 @@ class AzureRMVaults(AzureRMModuleBase):
                                 self.to_do = Actions.Update
                                 break
 
-                update_tags, newtags = self.update_tags(old_response.get('tags', dict()))
-
-                if update_tags:
-                    self.to_do = Actions.Update
-                    self.tags = newtags
-
         if (self.to_do == Actions.Create) or (self.to_do == Actions.Update):
             self.log("Need to Create / Update the Key Vault instance")
 
             if self.check_mode:
                 self.results['changed'] = True
                 return self.results
-
-            self.parameters["tags"] = self.tags
 
             response = self.create_update_keyvault()
 

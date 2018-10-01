@@ -40,7 +40,10 @@ import sys
 
 from landscape_api.base import API, HTTPError
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 _key = 'landscape'
 

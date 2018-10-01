@@ -27,8 +27,8 @@ options:
   mode:
     description:
       - "Mode the file or directory should be. For those used to I(/usr/bin/chmod) remember that modes are actually octal numbers.
-        You must either add a leading zero so that Ansible's YAML parser knows it is an octal
-        number (like C(0644) or C(01777)) or quote it (like C('644') or C('1777')) so Ansible
+        You must either specify the leading zero so that Ansible's YAML parser knows it is an octal
+        number (like C(0644) or C(01777)) or quote it (like C('644') or C('0644') so Ansible
         receives a string and can do its own conversion from string into number.  Giving Ansible a number
         without following one of these rules will end up with a decimal number which will have unexpected results.
         As of version 1.8, the mode may be specified as a symbolic mode (for example, C(u+rwx) or C(u=rw,g=r,o=r))."
@@ -57,13 +57,11 @@ options:
     default: "s0"
   unsafe_writes:
     description:
-      - By default this module uses atomic operations to prevent data
-        corruption or inconsistent reads from the target files,
-        but sometimes systems are configured or just broken in ways that prevent this. One example is docker mounted files,
-        which cannot be updated atomically from inside the container and can only be written in an unsafe manner.
-      - This option allows Ansible to fall back to unsafe methods of
-        updating files when atomic operations fail (however, it doesn't force Ansible to perform unsafe writes).
-        IMPORTANT! Unsafe writes are subject to race conditions and can lead to data corruption.
+      -  Normally this module uses atomic operations to prevent data corruption or inconsistent reads from the target files,
+         sometimes systems are configured or just broken in ways that prevent this. One example are docker mounted files,
+         they cannot be updated atomically and can only be done in an unsafe manner.
+      -  This boolean option allows ansible to fall back to unsafe methods of updating files for those cases in which you do
+         not have any other choice. Be aware that this is subject to race conditions and can lead to data corruption.
     type: bool
     default: 'no'
     version_added: "2.2"

@@ -607,27 +607,25 @@ def recursive_finder(name, data, py_module_names, py_module_cache, zf):
             py_module_name = py_module_name[:-1]
 
         # If not already processed then we've got work to do
-        # If not in the cache, then read the file into the cache
-        # We already have a file handle for the module open so it makes
-        # sense to read it now
-        if py_module_name not in py_module_cache:
-            if module_info[2][2] == imp.PKG_DIRECTORY:
-                # Read the __init__.py instead of the module file as this is
-                # a python package
-                normalized_name = py_module_name + ('__init__',)
-                if normalized_name not in py_module_names:
+        if py_module_name not in py_module_names:
+            # If not in the cache, then read the file into the cache
+            # We already have a file handle for the module open so it makes
+            # sense to read it now
+            if py_module_name not in py_module_cache:
+                if module_info[2][2] == imp.PKG_DIRECTORY:
+                    # Read the __init__.py instead of the module file as this is
+                    # a python package
+                    normalized_name = py_module_name + ('__init__',)
                     normalized_path = os.path.join(os.path.join(module_info[1], '__init__.py'))
                     normalized_data = _slurp(normalized_path)
-                    py_module_cache[normalized_name] = (normalized_data, normalized_path)
-                    normalized_modules.add(normalized_name)
-            else:
-                normalized_name = py_module_name
-                if normalized_name not in py_module_names:
+                else:
+                    normalized_name = py_module_name
                     normalized_path = module_info[1]
                     normalized_data = module_info[0].read()
                     module_info[0].close()
-                    py_module_cache[normalized_name] = (normalized_data, normalized_path)
-                    normalized_modules.add(normalized_name)
+
+                py_module_cache[normalized_name] = (normalized_data, normalized_path)
+                normalized_modules.add(normalized_name)
 
             # Make sure that all the packages that this module is a part of
             # are also added
@@ -638,22 +636,6 @@ def recursive_finder(name, data, py_module_names, py_module_cache, zf):
                                                    [os.path.join(p, *py_pkg_name[:-1]) for p in module_utils_paths])
                     normalized_modules.add(py_pkg_name)
                     py_module_cache[py_pkg_name] = (_slurp(pkg_dir_info[1]), pkg_dir_info[1])
-
-    # FIXME: Currently the AnsiBallZ wrapper monkeypatches module args into a global
-    # variable in basic.py.  If a module doesn't import basic.py, then the AnsiBallZ wrapper will
-    # traceback when it tries to monkypatch.  So, for now, we have to unconditionally include
-    # basic.py.
-    #
-    # In the future we need to change the wrapper to monkeypatch the args into a global variable in
-    # their own, separate python module.  That way we won't require basic.py.  Modules which don't
-    # want basic.py can import that instead.  AnsibleModule will need to change to import the vars
-    # from the separate python module and mirror the args into its global variable for backwards
-    # compatibility.
-    if ('basic',) not in py_module_names:
-        pkg_dir_info = imp.find_module('basic', module_utils_paths)
-        normalized_modules.add(('basic',))
-        py_module_cache[('basic',)] = (_slurp(pkg_dir_info[1]), pkg_dir_info[1])
-    # End of AnsiballZ hack
 
     #
     # iterate through all of the ansible.module_utils* imports that we haven't
@@ -686,69 +668,6 @@ def _is_binary(b_module_data):
     textchars = bytearray(set([7, 8, 9, 10, 12, 13, 27]) | set(range(0x20, 0x100)) - set([0x7f]))
     start = b_module_data[:1024]
     return bool(start.translate(None, textchars))
-
-
-def _create_powershell_wrapper(b_module_data, module_args, environment,
-                               async_timeout, become, become_method,
-                               become_user, become_password, become_flags,
-                               scan_dependencies=True):
-    # creates the manifest/wrapper used in PowerShell modules to enable things
-    # like become and async - this is also called in action/script.py
-    exec_manifest = dict(
-        module_entry=to_text(base64.b64encode(b_module_data)),
-        powershell_modules=dict(),
-        module_args=module_args,
-        actions=['exec'],
-        environment=environment
-    )
-
-    exec_manifest['exec'] = to_text(base64.b64encode(to_bytes(leaf_exec)))
-
-    if async_timeout > 0:
-        exec_manifest["actions"].insert(0, 'async_watchdog')
-        exec_manifest["async_watchdog"] = to_text(
-            base64.b64encode(to_bytes(async_watchdog)))
-        exec_manifest["actions"].insert(0, 'async_wrapper')
-        exec_manifest["async_wrapper"] = to_text(
-            base64.b64encode(to_bytes(async_wrapper)))
-        exec_manifest["async_jid"] = str(random.randint(0, 999999999999))
-        exec_manifest["async_timeout_sec"] = async_timeout
-
-    if become and become_method == 'runas':
-        exec_manifest["actions"].insert(0, 'become')
-        exec_manifest["become_user"] = become_user
-        exec_manifest["become_password"] = become_password
-        exec_manifest['become_flags'] = become_flags
-        exec_manifest["become"] = to_text(
-            base64.b64encode(to_bytes(become_wrapper)))
-
-    finder = PSModuleDepFinder()
-
-    # we don't want to scan for any module_utils or other module related flags
-    # if scan_dependencies=False - action/script sets to False
-    if scan_dependencies:
-        finder.scan_module(b_module_data)
-
-    for name, data in finder.modules.items():
-        b64_data = to_text(base64.b64encode(data))
-        exec_manifest['powershell_modules'][name] = b64_data
-
-    exec_manifest['min_ps_version'] = finder.ps_version
-    exec_manifest['min_os_version'] = finder.os_version
-    if finder.become and 'become' not in exec_manifest['actions']:
-        exec_manifest['actions'].insert(0, 'become')
-        exec_manifest['become_user'] = 'SYSTEM'
-        exec_manifest['become_password'] = None
-        exec_manifest['become_flags'] = None
-        exec_manifest['become'] = to_text(
-            base64.b64encode(to_bytes(become_wrapper)))
-
-    # FUTURE: smuggle this back as a dict instead of serializing here;
-    # the connection plugin may need to modify it
-    b_json = to_bytes(json.dumps(exec_manifest))
-    b_data = exec_wrapper.replace(b"$json_raw = ''",
-                                  b"$json_raw = @'\r\n%s\r\n'@" % b_json)
-    return b_data
 
 
 def _find_module_utils(module_name, b_module_data, module_path, module_args, task_vars, templar, module_compression, async_timeout, become,
@@ -930,13 +849,52 @@ def _find_module_utils(module_name, b_module_data, module_path, module_args, tas
         # it can fail in the presence of the UTF8 BOM commonly added by
         # Windows text editors
         shebang = u'#!powershell'
-        # create the common exec wrapper payload and set that as the module_data
-        # bytes
-        b_module_data = _create_powershell_wrapper(
-            b_module_data, module_args, environment, async_timeout, become,
-            become_method, become_user, become_password, become_flags,
-            scan_dependencies=True
+
+        exec_manifest = dict(
+            module_entry=to_text(base64.b64encode(b_module_data)),
+            powershell_modules=dict(),
+            module_args=module_args,
+            actions=['exec'],
+            environment=environment
         )
+
+        exec_manifest['exec'] = to_text(base64.b64encode(to_bytes(leaf_exec)))
+
+        if async_timeout > 0:
+            exec_manifest["actions"].insert(0, 'async_watchdog')
+            exec_manifest["async_watchdog"] = to_text(base64.b64encode(to_bytes(async_watchdog)))
+            exec_manifest["actions"].insert(0, 'async_wrapper')
+            exec_manifest["async_wrapper"] = to_text(base64.b64encode(to_bytes(async_wrapper)))
+            exec_manifest["async_jid"] = str(random.randint(0, 999999999999))
+            exec_manifest["async_timeout_sec"] = async_timeout
+
+        if become and become_method == 'runas':
+            exec_manifest["actions"].insert(0, 'become')
+            exec_manifest["become_user"] = become_user
+            exec_manifest["become_password"] = become_password
+            exec_manifest['become_flags'] = become_flags
+            exec_manifest["become"] = to_text(base64.b64encode(to_bytes(become_wrapper)))
+
+        finder = PSModuleDepFinder()
+        finder.scan_module(b_module_data)
+
+        for name, data in finder.modules.items():
+            b64_data = to_text(base64.b64encode(data))
+            exec_manifest['powershell_modules'][name] = b64_data
+
+        exec_manifest['min_ps_version'] = finder.ps_version
+        exec_manifest['min_os_version'] = finder.os_version
+        if finder.become and 'become' not in exec_manifest['actions']:
+            exec_manifest['actions'].insert(0, 'become')
+            exec_manifest['become_user'] = 'SYSTEM'
+            exec_manifest['become_password'] = None
+            exec_manifest['become_flags'] = None
+            exec_manifest['become'] = to_text(base64.b64encode(to_bytes(become_wrapper)))
+
+        # FUTURE: smuggle this back as a dict instead of serializing here; the connection plugin may need to modify it
+        module_json = json.dumps(exec_manifest)
+
+        b_module_data = exec_wrapper.replace(b"$json_raw = ''", b"$json_raw = @'\r\n%s\r\n'@" % to_bytes(module_json))
 
     elif module_substyle == 'jsonargs':
         module_args_json = to_bytes(json.dumps(module_args))

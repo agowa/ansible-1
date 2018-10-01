@@ -18,7 +18,7 @@
     validate_certs: '{{ aci_validate_certs | default(false) }}'
     use_ssl: '{{ aci_use_ssl | default(true) }}'
     use_proxy: '{{ aci_use_proxy | default(true) }}'
-    output_level: '{{ aci_output_level | default("info") }}'
+    output_level: info
     serial: ansible_test
     node_id: 105
     state: absent
@@ -57,11 +57,9 @@
 - name: Verify add_fabric_node
   assert:
     that:
-    - cm_add_fabric_node is changed
-    - nm_add_fabric_node is changed
+    - cm_add_fabric_node.changed == nm_add_fabric_node.changed == true
     # FIXME: Module is not idempotent
-    - cm_add_fabric_node_again is not changed
-    - nm_add_fabric_node_again is not changed
+    - cm_add_fabric_node_again.changed == nm_add_fabric_node_again.changed == false
 
 
 # CHANGE FABRIC NODE
@@ -94,11 +92,9 @@
 - name: Verify add_fabric_node_descr
   assert:
     that:
-    - cm_add_fabric_node_descr is changed
-    - nm_add_fabric_node_descr is changed
+    - cm_add_fabric_node_descr.changed == nm_add_fabric_node_descr.changed == true
     # FIXME: Module is not idempotent
-    - cm_add_fabric_node_descr_again is not changed
-    - nm_add_fabric_node_descr_again is not changed
+    - cm_add_fabric_node_descr_again.changed == nm_add_fabric_node_descr_again.changed == false
 
 
 # ADD FABRIC NODE AGAIN
@@ -115,8 +111,7 @@
   assert:
     that:
     # FIXME: Module is not idempotent
-    - cm_add_fabric_node_again_no_descr is not changed
-    - nm_add_fabric_node_again_no_descr is not changed
+    - cm_add_fabric_node_again_no_descr.changed == nm_add_fabric_node_again_no_descr.changed == false
 
 
 # QUERY ALL FABRIC NODES
@@ -128,7 +123,6 @@
     validate_certs: '{{ aci_validate_certs | default(false) }}'
     use_ssl: '{{ aci_use_ssl | default(true) }}'
     use_proxy: '{{ aci_use_proxy | default(true) }}'
-    output_level: '{{ aci_output_level | default("info") }}'
     state: query
   check_mode: yes
   register: cm_query_all_fabric_nodes
@@ -140,8 +134,7 @@
 - name: Verify query_all_fabric_nodes
   assert:
     that:
-    - cm_query_all_fabric_nodes is not changed
-    - nm_query_all_fabric_nodes is not changed
+    - cm_query_all_fabric_nodes.changed == nm_query_all_fabric_nodes.changed == false
     - cm_query_all_fabric_nodes == nm_query_all_fabric_nodes
 
 
@@ -162,8 +155,7 @@
 - name: Verify query_fabric_node
   assert:
     that:
-    - cm_query_fabric_node is not changed
-    - nm_query_fabric_node is not changed
+    - cm_query_fabric_node.changed == nm_query_fabric_node.changed == false
     - cm_query_fabric_node == nm_query_fabric_node
 
 
@@ -189,10 +181,8 @@
 - name: Verify remove_fabric_node
   assert:
     that:
-    - cm_remove_fabric_node is changed
-    - nm_remove_fabric_node is changed
-    - cm_remove_fabric_node_again is not changed
-    - nm_remove_fabric_node_again is not changed
+    - cm_remove_fabric_node.changed == nm_remove_fabric_node.changed == true
+    - cm_remove_fabric_node_again.changed == nm_remove_fabric_node_again.changed == false
 
 
 # QUERY NON-EXISTING LEAF PROFILE
@@ -212,6 +202,5 @@
 - name: Verify query_non_fabric_node
   assert:
     that:
-    - cm_query_non_fabric_node is not changed
-    - nm_query_non_fabric_node is not changed
+    - cm_query_non_fabric_node.changed == nm_query_non_fabric_node.changed == false
     - cm_query_non_fabric_node == nm_query_non_fabric_node

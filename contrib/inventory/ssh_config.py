@@ -45,7 +45,10 @@ import os.path
 import sys
 from collections import MutableSequence
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 import paramiko
 

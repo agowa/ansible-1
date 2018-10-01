@@ -513,7 +513,7 @@ EXAMPLES = '''
     api_host    : helldorado
     name        : spynal
     node        : sabrewulf
-    cores       : 8
+    cpu         : 8
     memory      : 16384
     update      : yes
 

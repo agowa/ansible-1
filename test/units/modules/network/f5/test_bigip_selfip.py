@@ -143,7 +143,7 @@ class TestManager(unittest.TestCase):
             state='present',
             traffic_group='traffic-group-local-only',
             vlan='net1',
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))
@@ -177,7 +177,7 @@ class TestManager(unittest.TestCase):
             state='present',
             traffic_group='traffic-group-local-only',
             vlan='net1',
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))

@@ -27,16 +27,13 @@ class HttpApi(HttpApiBase):
         request = request_builder(queue, output)
         headers = {'Content-Type': 'application/json'}
 
-        response, response_data = self.connection.send('/ins', request, headers=headers, method='POST')
-
+        response, response_text = self.connection.send('/ins', request, headers=headers, method='POST')
         try:
-            response_data = json.loads(to_text(response_data.getvalue()))
+            response_text = json.loads(response_text)
         except ValueError:
-            raise ConnectionError('Response was not valid JSON, got {0}'.format(
-                to_text(response_data.getvalue())
-            ))
+            raise ConnectionError('Response was not valid JSON, got {0}'.format(response_text))
 
-        results = handle_response(response_data)
+        results = handle_response(response_text)
 
         if self._become:
             results = results[1:]
@@ -79,7 +76,7 @@ class HttpApi(HttpApiBase):
         resp = list()
 
         operations = self.connection.get_device_operations()
-        self.connection.check_edit_config_capability(operations, candidate, commit, replace, comment)
+        self.connection.check_edit_config_capabiltiy(operations, candidate, commit, replace, comment)
 
         if replace:
             device_info = self.connection.get_device_info()
@@ -102,7 +99,7 @@ class HttpApi(HttpApiBase):
         try:
             out = self.send_request(commands)
         except ConnectionError as exc:
-            if check_rc is True:
+            if check_rc:
                 raise
             out = to_text(exc)
 

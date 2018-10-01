@@ -122,7 +122,7 @@ results:
 '''
 
 try:
-    from pyvmomi import vim
+    from pyvmomi import vim, vmodl
 except ImportError:
     pass
 

@@ -9,7 +9,7 @@
 
 # TODO:
 #   * more jq examples
-#   * optional folder hierarchy
+#   * optional folder heriarchy
 
 """
 $ jq '._meta.hostvars[].config' data.json | head
@@ -38,8 +38,9 @@ import sys
 import uuid
 from time import time
 
+import six
 from jinja2 import Environment
-from six import integer_types, PY3
+from six import integer_types, string_types
 from six.moves import configparser
 
 try:
@@ -234,7 +235,7 @@ class VMWareInventory(object):
             'groupby_custom_field': False}
         }
 
-        if PY3:
+        if six.PY3:
             config = configparser.ConfigParser()
         else:
             config = configparser.SafeConfigParser()

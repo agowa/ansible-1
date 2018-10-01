@@ -95,7 +95,6 @@ options:
 
 EXAMPLES = '''
 # Start a server (if it does not exist) and register the server details
-
 - name: Start cloudscale.ch server
   cloudscale_server:
     name: my-shiny-cloudscale-server

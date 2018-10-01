@@ -107,20 +107,19 @@ class TestIosCommandModule(TestIosModule):
         set_module_args(dict(commands=commands, wait_for=wait_for, match='all'))
         self.execute_module(failed=True)
 
-    def test_ios_command_configure_check_warning(self):
+    def test_ios_command_configure_error(self):
         commands = ['configure terminal']
         set_module_args({
             'commands': commands,
             '_ansible_check_mode': True,
         })
-        result = self.execute_module()
+        result = self.execute_module(failed=True)
         self.assertEqual(
-            result['warnings'],
-            ['Only show commands are supported when using check mode, not executing configure terminal'],
+            result['msg'],
+            'ios_command does not support running config mode commands.  Please use ios_config instead'
         )
 
-    def test_ios_command_configure_not_warning(self):
-        commands = ['configure terminal']
+    def test_ios_command_configure_not_error(self):
+        commands = ['configure revert now']
         set_module_args(dict(commands=commands))
-        result = self.execute_module()
-        self.assertEqual(result['warnings'], [])
+        self.execute_module()

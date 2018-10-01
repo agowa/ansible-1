@@ -123,7 +123,14 @@ import re
 
 from ansible.module_utils.basic import AnsibleModule
 
-import json
+try:
+    import json
+except ImportError:
+    try:
+        import simplejson as json
+    except ImportError:
+        # Let snippet from module_utils/basic.py return a proper error in this case
+        pass
 
 
 class Npm(object):

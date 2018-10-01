@@ -97,7 +97,6 @@ options:
 
 extends_documentation_fragment:
     - azure
-    - azure_tags
 
 author:
     - "Zim Kalinowski (@zikalino)"
@@ -257,27 +256,28 @@ class AzureRMContainerInstance(AzureRMModuleBase):
 
         self.containers = None
 
-        self.tags = None
-
         self.results = dict(changed=False, state=dict())
+        self.client = None
         self.cgmodels = None
 
         super(AzureRMContainerInstance, self).__init__(derived_arg_spec=self.module_arg_spec,
                                                        supports_check_mode=True,
-                                                       supports_tags=True)
+                                                       supports_tags=False)
 
     def exec_module(self, **kwargs):
         """Main module execution method"""
 
-        for key in list(self.module_arg_spec.keys()) + ['tags']:
+        for key in list(self.module_arg_spec.keys()):
             setattr(self, key, kwargs[key])
 
         resource_group = None
         response = None
         results = dict()
 
+        self.client = self.get_mgmt_svc_client(ContainerInstanceManagementClient)
+
         # since this client hasn't been upgraded to expose models directly off the OperationClass, fish them out
-        self.cgmodels = self.containerinstance_client.container_groups.models
+        self.cgmodels = self.client.container_groups.models
 
         resource_group = self.get_resource_group(self.resource_group)
 
@@ -303,10 +303,6 @@ class AzureRMContainerInstance(AzureRMModuleBase):
                 self.log("Container instance deleted")
             elif self.state == 'present':
                 self.log("Need to check if container group has to be deleted or may be updated")
-                update_tags, newtags = self.update_tags(response.get('tags', dict()))
-                if update_tags:
-                    self.tags = newtags
-
                 if self.force_update:
                     self.log('Deleting container instance before update')
                     if not self.check_mode:
@@ -382,12 +378,11 @@ class AzureRMContainerInstance(AzureRMModuleBase):
                                                   restart_policy=None,
                                                   ip_address=ip_address,
                                                   os_type=self.os_type,
-                                                  volumes=None,
-                                                  tags=self.tags)
+                                                  volumes=None)
 
-        response = self.containerinstance_client.container_groups.create_or_update(resource_group_name=self.resource_group,
-                                                                                   container_group_name=self.name,
-                                                                                   container_group=parameters)
+        response = self.client.container_groups.create_or_update(resource_group_name=self.resource_group,
+                                                                 container_group_name=self.name,
+                                                                 container_group=parameters)
 
         if isinstance(response, AzureOperationPoller):
             response = self.get_poller_result(response)
@@ -401,7 +396,7 @@ class AzureRMContainerInstance(AzureRMModuleBase):
         :return: True
         '''
         self.log("Deleting the container instance {0}".format(self.name))
-        response = self.containerinstance_client.container_groups.delete(resource_group_name=self.resource_group, container_group_name=self.name)
+        response = self.client.container_groups.delete(resource_group_name=self.resource_group, container_group_name=self.name)
         return True
 
     def get_containerinstance(self):
@@ -413,7 +408,7 @@ class AzureRMContainerInstance(AzureRMModuleBase):
         self.log("Checking if the container instance {0} is present".format(self.name))
         found = False
         try:
-            response = self.containerinstance_client.container_groups.get(resource_group_name=self.resource_group, container_group_name=self.name)
+            response = self.client.container_groups.get(resource_group_name=self.resource_group, container_group_name=self.name)
             found = True
             self.log("Response : {0}".format(response))
             self.log("Container instance : {0} found".format(response.name))

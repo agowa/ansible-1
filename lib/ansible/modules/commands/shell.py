@@ -1,10 +1,7 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
-# Copyright: (c) 2018, Ansible Project
+# Copyright: Ansible Project
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-# There is no actual shell module source, when you use 'shell' in ansible,
+# # There is no actual shell module source, when you use 'shell' in ansible,
 # it runs the 'command' module with special arguments and it behaves differently.
 # See the command source and the comment "#USE_SHELL".
 
@@ -17,49 +14,47 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'supported_by': 'core'}
 
 
-DOCUMENTATION = r'''
+DOCUMENTATION = '''
 ---
 module: shell
-short_description: Execute shell commands on targets
+short_description: Execute commands in nodes.
 description:
      - The C(shell) module takes the command name followed by a list of space-delimited arguments.
-     - It is almost exactly like the M(command) module but runs
+       It is almost exactly like the M(command) module but runs
        the command through a shell (C(/bin/sh)) on the remote node.
      - For Windows targets, use the M(win_shell) module instead.
 version_added: "0.2"
 options:
   free_form:
     description:
-      - The shell module takes a free form command to run, as a string.
-      - There is no actual parameter named 'free form'.
-      - See the examples on how to use this module.
-    required: yes
+      - The shell module takes a free form command to run, as a string.  There's not an actual
+        option named "free form".  See the examples!
+    required: true
   creates:
     description:
-      - A filename, when it already exists, this step will B(not) be run.
+      - a filename, when it already exists, this step will B(not) be run.
   removes:
     description:
-      - A filename, when it does not exist, this step will B(not) be run.
+      - a filename, when it does not exist, this step will B(not) be run.
     version_added: "0.8"
   chdir:
     description:
-      - Change into this directory before running the command.
+      - cd into this directory before running the command
     version_added: "0.6"
   executable:
     description:
-      - Change the shell used to execute the command.
-      - This expects an absolute path to the executable.
+      - change the shell used to execute the command. Should be an absolute path to the executable.
     version_added: "0.9"
   warn:
     description:
-      - Enable or disable task warnings.
+      - if command warnings are on in ansible.cfg, do not warn about this particular line if set to no/false.
     type: bool
-    default: yes
+    default: 'yes'
     version_added: "1.8"
   stdin:
+    version_added: "2.4"
     description:
       - Set the stdin of the command directly to the specified value.
-    version_added: "2.4"
 notes:
   -  If you want to execute a command securely and predictably, it may be
      better to use the M(command) module instead. Best practices when writing
@@ -72,15 +67,16 @@ notes:
      are not supplied, the task will be skipped.
   -  To sanitize any variables passed to the shell module, you should use
      "{{ var | quote }}" instead of just "{{ var }}" to make sure they don't include evil things like semicolons.
-  - An alternative to using inline shell scripts with this module is to use
-    the M(script) module possibly together with the M(template) module.
   - For Windows targets, use the M(win_shell) module instead.
+  - Rather than using here documents to create multi-line scripts inside playbooks,
+    use the M(script) module instead.
+requirements: [ ]
 author:
     - Ansible Core Team
     - Michael DeHaan
 '''
 
-EXAMPLES = r'''
+EXAMPLES = '''
 - name: Execute the command in remote shell; stdout goes to the specified file on the remote.
   shell: somescript.sh >> somelog.txt
 
@@ -111,27 +107,21 @@ EXAMPLES = r'''
     spawn ssh admin@{{ cimc_host }}
 
     expect "password:"
-    send "{{ cimc_password }}\n"
+    send "{{ cimc_password }}\\n"
 
-    expect "\n{{ cimc_name }}"
-    send "connect host\n"
+    expect "\\n{{ cimc_name }}"
+    send "connect host\\n"
 
     expect "pxeboot.n12"
-    send "\n"
+    send "\\n"
 
     exit 0
   args:
     executable: /usr/bin/expect
   delegate_to: localhost
-
-# Disabling warnings
-- name: Using curl to connect to a host via SOCKS proxy (unsupported in uri). Ordinarily this would throw a warning.
-  shell: curl --socks5 localhost:9000 http://www.ansible.com
-  args:
-    warn: no
 '''
 
-RETURN = r'''
+RETURN = '''
 msg:
     description: changed
     returned: always

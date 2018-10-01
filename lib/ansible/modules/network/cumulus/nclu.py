@@ -84,7 +84,6 @@ EXAMPLES = '''
     commands:
         - show interface swp1
   register: output
-
 - name: Print Status Of Interface
   debug:
     var: output
@@ -94,7 +93,6 @@ EXAMPLES = '''
     commands:
         - show interface json
   register: output
-
 - name: Print Interface Details
   debug:
     var: output["msg"]
@@ -105,11 +103,6 @@ EXAMPLES = '''
         - add int swp1
     atomic: true
     description: "Ansible - add swp1"
-
-- name: Remove IP address from interface swp1
-  nclu:
-    commands:
-        - del int swp1 ip address 1.1.1.1/24
 
 - name: Configure BGP AS and add 2 EBGP neighbors using BGP Unnumbered
   nclu:
@@ -133,7 +126,6 @@ EXAMPLES = '''
     commands:
         - show bgp summary json
   register: output
-
 - name: Print BGP Status In JSON
   debug:
     var: output["msg"]

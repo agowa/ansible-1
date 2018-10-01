@@ -31,5 +31,3 @@ netconf-yang agent
 !
 ssh server v2
 ssh server netconf vrf default
-!
-end

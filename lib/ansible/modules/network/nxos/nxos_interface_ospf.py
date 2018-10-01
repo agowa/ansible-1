@@ -36,7 +36,6 @@ notes:
   - To remove an existing authentication configuration you should use
     C(message_digest_key_id=default) plus all other options matching their
     existing values.
-  - Loopback interfaces only support ospf network type 'point-to-point'.
   - C(state=absent) removes the whole OSPF interface configuration.
 options:
   interface:
@@ -70,11 +69,6 @@ options:
       - Setting to true will prevent this interface from receiving
         HELLO packets.
     type: bool
-  network:
-    description:
-      - Specifies interface ospf network type. Valid values are 'point-to-point' or 'broadcast'.
-    choices: ['point-to-point', 'broadcast']
-    version_added: "2.8"
   message_digest:
     description:
       - Enables or disables the usage of message digest authentication.
@@ -111,13 +105,6 @@ EXAMPLES = '''
     ospf: 1
     area: 1
     cost: default
-
-- nxos_interface_ospf:
-    interface: loopback0
-    ospf: prod
-    area: 0.0.0.0
-    network: point-to-point
-    state: present
 '''
 
 RETURN = '''
@@ -154,7 +141,6 @@ PARAM_TO_COMMAND_KEYMAP = {
     'message_digest_algorithm_type': 'ip ospf message-digest-key',
     'message_digest_encryption_type': 'ip ospf message-digest-key',
     'message_digest_password': 'ip ospf message-digest-key',
-    'network': 'ip ospf network',
 }
 
 
@@ -263,12 +249,6 @@ def get_custom_command(existing_cmd, proposed, key, module):
         if command not in existing_cmd:
             commands.append(command)
 
-    if key == 'ip ospf network':
-        command = '{0} {1}'.format(key, proposed['network'])
-
-        if command not in existing_cmd:
-            commands.append(command)
-
     elif key.startswith('ip ospf message-digest-key'):
         if (proposed['message_digest_key_id'] != 'default' and
                 'options' not in key):
@@ -301,8 +281,6 @@ def state_present(module, existing, proposed, candidate):
 
         if key == 'ip ospf passive-interface' and module.params.get('interface').upper().startswith('LO'):
             module.fail_json(msg='loopback interface does not support passive_interface')
-        if key == 'ip ospf network' and value == 'broadcast' and module.params.get('interface').upper().startswith('LO'):
-            module.fail_json(msg='loopback interface does not support ospf network type broadcast')
         if value is True:
             commands.append(key)
         elif value is False:
@@ -347,7 +325,7 @@ def state_absent(module, existing, proposed, candidate):
                         existing['message_digest_password'])
                     commands.append(command)
             elif key in ['ip ospf authentication message-digest',
-                         'ip ospf passive-interface', 'ip ospf network']:
+                         'ip ospf passive-interface']:
                 if value:
                     commands.append('no {0}'.format(key))
             elif key == 'ip router ospf':
@@ -381,7 +359,6 @@ def main():
         hello_interval=dict(required=False, type='str'),
         dead_interval=dict(required=False, type='str'),
         passive_interface=dict(required=False, type='bool'),
-        network=dict(required=False, type='str', choices=['broadcast', 'point-to-point']),
         message_digest=dict(required=False, type='bool'),
         message_digest_key_id=dict(required=False, type='str'),
         message_digest_algorithm_type=dict(required=False, type='str', choices=['md5', 'default']),

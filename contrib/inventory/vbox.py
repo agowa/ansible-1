@@ -18,7 +18,10 @@
 import sys
 from subprocess import Popen, PIPE
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 
 class SetEncoder(json.JSONEncoder):

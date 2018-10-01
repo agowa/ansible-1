@@ -48,7 +48,7 @@ class ActionModule(ActionBase):
         if not self.ignore_files:
             self.ignore_files = list()
 
-        if isinstance(self.ignore_files, string_types):
+        if isinstance(self.ignore_files, str):
             self.ignore_files = self.ignore_files.split()
 
         elif isinstance(self.ignore_files, dict):

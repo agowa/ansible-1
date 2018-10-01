@@ -358,7 +358,14 @@ class GalaxyCLI(CLI):
                                     msg = "Unable to load data from the include requirements file: %s %s"
                                     raise AnsibleError(msg % (role_file, e))
                 else:
-                    raise AnsibleError("Invalid role requirements file")
+                    display.deprecated("going forward only the yaml format will be supported", version="2.6")
+                    # roles listed in a file, one per line
+                    for rline in f.readlines():
+                        if rline.startswith("#") or rline.strip() == '':
+                            continue
+                        display.debug('found role %s in text file' % str(rline))
+                        role = RoleRequirement.role_yaml_parse(rline.strip())
+                        roles_left.append(GalaxyRole(self.galaxy, **role))
                 f.close()
             except (IOError, OSError) as e:
                 raise AnsibleError('Unable to open %s: %s' % (role_file, str(e)))
@@ -493,7 +500,7 @@ class GalaxyCLI(CLI):
                 path_files = os.listdir(role_path)
                 path_found = True
                 for path_file in path_files:
-                    gr = GalaxyRole(self.galaxy, path_file, path=path)
+                    gr = GalaxyRole(self.galaxy, path_file)
                     if gr.metadata:
                         install_info = gr.install_info
                         version = None

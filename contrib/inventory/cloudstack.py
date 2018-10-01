@@ -74,7 +74,12 @@ from __future__ import print_function
 
 import sys
 import argparse
-import json
+
+try:
+    import json
+except:
+    import simplejson as json
+
 
 try:
     from cs import CloudStack, CloudStackException, read_config

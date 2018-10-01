@@ -26,14 +26,6 @@
                 "arn:aws:s3:::ansible-test-*",
                 "arn:aws:s3:::ansible-test-*/*"
             ]
-        },
-        {
-            "Sid": "AllowListingS3Buckets",
-            "Action": [
-                "s3:ListAllMyBuckets"
-            ],
-            "Effect": "Allow",
-            "Resource": "*"
         }
     ]
 }

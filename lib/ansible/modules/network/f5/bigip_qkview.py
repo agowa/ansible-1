@@ -86,52 +86,53 @@ EXAMPLES = r'''
 '''
 
 RETURN = r'''
-# only common fields returned
+stdout:
+  description: The set of responses from the commands
+  returned: always
+  type: list
+  sample: ['...', '...']
+stdout_lines:
+  description: The value of stdout split into a list
+  returned: always
+  type: list
+  sample: [['...', '...'], ['...'], ['...']]
 '''
 
 import os
 import re
-import socket
-import time
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.six import string_types
 from distutils.version import LooseVersion
 
 try:
-    import urlparse
-except ImportError:
-    import urllib.parse as urlparse
-
-try:
-    from library.module_utils.network.f5.bigip import F5RestClient
+    from library.module_utils.network.f5.bigip import HAS_F5SDK
+    from library.module_utils.network.f5.bigip import F5Client
     from library.module_utils.network.f5.common import F5ModuleError
     from library.module_utils.network.f5.common import AnsibleF5Parameters
     from library.module_utils.network.f5.common import cleanup_tokens
     from library.module_utils.network.f5.common import f5_argument_spec
-    from library.module_utils.network.f5.common import exit_json
-    from library.module_utils.network.f5.common import fail_json
-    from library.module_utils.network.f5.common import transform_name
-    from library.module_utils.network.f5.icontrol import download_file
+    try:
+        from library.module_utils.network.f5.common import iControlUnexpectedHTTPError
+    except ImportError:
+        HAS_F5SDK = False
 except ImportError:
-    from ansible.module_utils.network.f5.bigip import F5RestClient
+    from ansible.module_utils.network.f5.bigip import HAS_F5SDK
+    from ansible.module_utils.network.f5.bigip import F5Client
     from ansible.module_utils.network.f5.common import F5ModuleError
     from ansible.module_utils.network.f5.common import AnsibleF5Parameters
     from ansible.module_utils.network.f5.common import cleanup_tokens
     from ansible.module_utils.network.f5.common import f5_argument_spec
-    from ansible.module_utils.network.f5.common import exit_json
-    from ansible.module_utils.network.f5.common import fail_json
-    from ansible.module_utils.network.f5.common import transform_name
-    from ansible.module_utils.network.f5.icontrol import download_file
+    try:
+        from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
+    except ImportError:
+        HAS_F5SDK = False
 
 
 class Parameters(AnsibleF5Parameters):
     api_attributes = [
-        'asm_request_log',
-        'complete_information',
-        'exclude',
-        'exclude_core',
-        'filename_cmd',
-        'max_file_size',
+        'exclude', 'exclude_core', 'complete_information', 'max_file_size',
+        'asm_request_log', 'filename_cmd'
     ]
 
     returnables = ['stdout', 'stdout_lines', 'warnings']
@@ -162,8 +163,8 @@ class Parameters(AnsibleF5Parameters):
 
     @property
     def max_file_size(self):
-        if self._values['max_file_size'] in [None]:
-            return None
+        if self._values['max_file_size'] in [None, 0]:
+            return '-s0'
         return '-s {0}'.format(self._values['max_file_size'])
 
     @property
@@ -228,16 +229,14 @@ class ModuleManager(object):
             return BulkLocationManager(**self.kwargs)
 
     def is_version_less_than_14(self):
-        uri = "https://{0}:{1}/mgmt/tm/sys".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-        version = urlparse.parse_qs(urlparse.urlparse(response['selfLink']).query)['ver'][0]
+        """Checks to see if the TMOS version is less than 14
+
+        Anything less than BIG-IP 13.x does not support users
+        on different partitions.
+
+        :return: Bool
+        """
+        version = self.client.api.tmos_version
         if LooseVersion(version) < LooseVersion('14.0.0'):
             return True
         else:
@@ -260,10 +259,19 @@ class BaseManager(object):
         if changed:
             self.changes = Parameters(params=changed)
 
+    def _to_lines(self, stdout):
+        lines = []
+        if isinstance(stdout, string_types):
+            lines = str(stdout).split('\n')
+        return lines
+
     def exec_module(self):
         result = dict()
 
-        self.present()
+        try:
+            self.present()
+        except iControlUnexpectedHTTPError as e:
+            raise F5ModuleError(str(e))
 
         result.update(**self.changes.to_return())
         result.update(dict(changed=False))
@@ -284,35 +292,21 @@ class BaseManager(object):
         self.execute()
 
     def exists(self):
-        params = dict(
-            command='run',
-            utilCmdArgs=self.remote_dir
+        ls = self.client.api.tm.util.unix_ls.exec_cmd(
+            'run', utilCmdArgs=self.remote_dir
         )
-        uri = "https://{0}:{1}/mgmt/tm/util/unix-ls".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.post(uri, json=params)
-        try:
-            response = resp.json()
-        except ValueError:
-            return False
-        if resp.status == 404 or 'code' in response and response['code'] == 404:
+
+        # Empty directories return nothing to the commandResult
+        if not hasattr(ls, 'commandResult'):
             return False
 
-        try:
-            if self.want.filename in response['commandResult']:
-                return True
-        except KeyError:
+        if self.want.filename in ls.commandResult:
+            return True
+        else:
             return False
 
     def execute(self):
         response = self.execute_on_device()
-        if not response:
-            raise F5ModuleError(
-                "Failed to create qkview on device."
-            )
-
         result = self._move_qkview_to_download()
         if not result:
             raise F5ModuleError(
@@ -332,165 +326,26 @@ class BaseManager(object):
                 "Failed to remove the remote qkview"
             )
 
+        self.changes = Parameters({
+            'stdout': response,
+            'stdout_lines': self._to_lines(response)
+        })
+
     def _delete_qkview(self):
         tpath_name = '{0}/{1}'.format(self.remote_dir, self.want.filename)
-        params = dict(
-            command='run',
-            utilCmdArgs=tpath_name
+        self.client.api.tm.util.unix_rm.exec_cmd(
+            'run', utilCmdArgs=tpath_name
         )
-        uri = "https://{0}:{1}/mgmt/tm/util/unix-rm".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.post(uri, json=params)
-        try:
-            response = resp.json()
-        except ValueError:
-            return False
-        if resp.status == 404 or 'code' in response and response['code'] == 404:
-            return False
 
     def execute_on_device(self):
-        self._upsert_temporary_cli_script_on_device()
-        task_id = self._create_async_task_on_device()
-        self._exec_async_task_on_device(task_id)
-        self._wait_for_async_task_to_finish_on_device(task_id)
-        self._remove_temporary_cli_script_from_device()
-        return True
-
-    def _upsert_temporary_cli_script_on_device(self):
-        args = {
-            "name": "__ansible_mkqkview",
-            "apiAnonymous": """
-                proc script::run {} {
-                    set cmd [lreplace $tmsh::argv 0 0]; eval "exec $cmd 2> /dev/null"
-                }
-            """
-        }
-        result = self._create_temporary_cli_script_on_device(args)
-        if result:
-            return True
-        return self._update_temporary_cli_script_on_device(args)
-
-    def _create_temporary_cli_script_on_device(self, args):
-        uri = "https://{0}:{1}/mgmt/tm/cli/script".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
+        params = self.want.api_params().values()
+        output = self.client.api.tm.util.qkview.exec_cmd(
+            'run',
+            utilCmdArgs='{0}'.format(' '.join(params))
         )
-        resp = self.client.api.post(uri, json=args)
-        try:
-            response = resp.json()
-            if 'code' in response and response['code'] in [404, 409]:
-                return False
-        except ValueError:
-            pass
-        if resp.status in [404, 409]:
-            return False
-        return True
-
-    def _update_temporary_cli_script_on_device(self, args):
-        uri = "https://{0}:{1}/mgmt/tm/cli/script/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name('Common', '__ansible_mkqkview')
-        )
-        resp = self.client.api.put(uri, json=args)
-        try:
-            resp.json()
-            return True
-        except ValueError:
-            raise F5ModuleError(
-                "Failed to update temporary cli script on device."
-            )
-
-    def _create_async_task_on_device(self):
-        """Creates an async cli script task in the REST API
-
-        Returns:
-            int: The ID of the task staged for running.
-
-        :return:
-        """
-        command = ' '.join(self.want.api_params().values())
-        args = {
-            "command": "run",
-            "name": "__ansible_mkqkview",
-            "utilCmdArgs": "/usr/bin/qkview {0}".format(command)
-        }
-        uri = "https://{0}:{1}/mgmt/tm/task/cli/script".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-        )
-        resp = self.client.api.post(uri, json=args)
-        try:
-            response = resp.json()
-            return response['_taskId']
-        except ValueError:
-            raise F5ModuleError(
-                "Failed to create the async task on the device."
-            )
-
-    def _exec_async_task_on_device(self, task_id):
-        args = {"_taskState": "VALIDATING"}
-        uri = "https://{0}:{1}/mgmt/tm/task/cli/script/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            task_id
-        )
-        resp = self.client.api.put(uri, json=args)
-        try:
-            resp.json()
-            return True
-        except ValueError:
-            raise F5ModuleError(
-                "Failed to execute the async task on the device"
-            )
-
-    def _wait_for_async_task_to_finish_on_device(self, task_id):
-        uri = "https://{0}:{1}/mgmt/tm/task/cli/script/{2}/result".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            task_id
-        )
-        while True:
-            try:
-                resp = self.client.api.get(uri, timeout=10)
-            except socket.timeout:
-                continue
-            response = resp.json()
-            if response['_taskState'] == 'FAILED':
-                raise F5ModuleError(
-                    "qkview creation task failed unexpectedly."
-                )
-            if response['_taskState'] == 'COMPLETED':
-                return True
-            time.sleep(3)
-
-    def _remove_temporary_cli_script_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/task/cli/script/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name('Common', '__ansible_mkqkview')
-        )
-        try:
-            self.client.api.delete(uri)
-            return True
-        except ValueError:
-            raise F5ModuleError(
-                "Failed to remove the temporary cli script from the device."
-            )
-
-    def _move_qkview_to_download(self):
-        uri = "https://{0}:{1}/mgmt/tm/util/unix-mv/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port']
-        )
-        args = dict(
-            command='run',
-            utilCmdArgs='/var/tmp/{0} {1}/{0}'.format(self.want.filename, self.remote_dir)
-        )
-        self.client.api.post(uri, json=args)
-        return True
+        if hasattr(output, 'commandResult'):
+            return str(output.commandResult)
+        return None
 
 
 class BulkLocationManager(BaseManager):
@@ -498,13 +353,22 @@ class BulkLocationManager(BaseManager):
         super(BulkLocationManager, self).__init__(**kwargs)
         self.remote_dir = '/var/config/rest/bulk'
 
+    def _move_qkview_to_download(self):
+        try:
+            move_path = '/var/tmp/{0} {1}/{0}'.format(
+                self.want.filename, self.remote_dir
+            )
+            self.client.api.tm.util.unix_mv.exec_cmd(
+                'run',
+                utilCmdArgs=move_path
+            )
+            return True
+        except Exception:
+            return False
+
     def _download_file(self):
-        uri = "https://{0}:{1}/mgmt/shared/file-transfer/bulk/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            self.want.filename
-        )
-        download_file(self.client, uri, self.want.dest)
+        bulk = self.client.api.shared.file_transfer.bulk
+        bulk.download_file(self.want.filename, self.want.dest)
         if os.path.exists(self.want.dest):
             return True
         return False
@@ -515,13 +379,22 @@ class MadmLocationManager(BaseManager):
         super(MadmLocationManager, self).__init__(**kwargs)
         self.remote_dir = '/var/config/rest/madm'
 
+    def _move_qkview_to_download(self):
+        try:
+            move_path = '/var/tmp/{0} {1}/{0}'.format(
+                self.want.filename, self.remote_dir
+            )
+            self.client.api.tm.util.unix_mv.exec_cmd(
+                'run',
+                utilCmdArgs=move_path
+            )
+            return True
+        except Exception:
+            return False
+
     def _download_file(self):
-        uri = "https://{0}:{1}/mgmt/shared/file-transfer/madm/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            self.want.filename
-        )
-        download_file(self.client, uri, self.want.dest)
+        madm = self.client.api.shared.file_transfer.madm
+        madm.download_file(self.want.filename, self.want.dest)
         if os.path.exists(self.want.dest):
             return True
         return False
@@ -574,18 +447,20 @@ def main():
 
     module = AnsibleModule(
         argument_spec=spec.argument_spec,
-        supports_check_mode=spec.supports_check_mode,
+        supports_check_mode=spec.supports_check_mode
     )
+    if not HAS_F5SDK:
+        module.fail_json(msg="The python f5-sdk module is required")
 
     try:
-        client = F5RestClient(**module.params)
+        client = F5Client(**module.params)
         mm = ModuleManager(module=module, client=client)
         results = mm.exec_module()
         cleanup_tokens(client)
-        exit_json(module, results, client)
+        module.exit_json(**results)
     except F5ModuleError as ex:
         cleanup_tokens(client)
-        fail_json(module, ex, client)
+        module.fail_json(msg=str(ex))
 
 
 if __name__ == '__main__':

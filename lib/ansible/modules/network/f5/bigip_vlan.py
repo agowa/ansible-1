@@ -385,33 +385,41 @@ class Difference(object):
 
     @property
     def untagged_interfaces(self):
-        result = self.cmp_interfaces(self.want.untagged_interfaces, self.have.untagged_interfaces, False)
+        result = []
+        if self.want.untagged_interfaces is None:
+            return None
+        elif self.want.untagged_interfaces == '' and self.have.untagged_interfaces is None:
+            return None
+        elif self.want.untagged_interfaces == '' and len(self.have.untagged_interfaces) > 0:
+            pass
+        elif not self.have.untagged_interfaces:
+            result = dict(
+                interfaces=[dict(name=x, untagged=True) for x in self.want.untagged_interfaces]
+            )
+        elif set(self.want.untagged_interfaces) != set(self.have.untagged_interfaces):
+            result = dict(
+                interfaces=[dict(name=x, untagged=True) for x in self.want.untagged_interfaces]
+            )
+        else:
+            return None
         return result
 
     @property
     def tagged_interfaces(self):
-        result = self.cmp_interfaces(self.want.tagged_interfaces, self.have.tagged_interfaces, True)
-        return result
-
-    def cmp_interfaces(self, want, have, tagged):
         result = []
-        if tagged:
-            tag_key = 'tagged'
-        else:
-            tag_key = 'untagged'
-        if want is None:
+        if self.want.tagged_interfaces is None:
             return None
-        elif want == '' and have is None:
+        elif self.want.tagged_interfaces == '' and self.have.tagged_interfaces is None:
             return None
-        elif want == '' and len(have) > 0:
+        elif self.want.tagged_interfaces == '' and len(self.have.tagged_interfaces) > 0:
             pass
-        elif not have:
+        elif not self.have.tagged_interfaces:
             result = dict(
-                interfaces=[{'name': x, tag_key: True} for x in want]
+                interfaces=[dict(name=x, tagged=True) for x in self.want.tagged_interfaces]
             )
-        elif set(want) != set(have):
+        elif set(self.want.tagged_interfaces) != set(self.have.tagged_interfaces):
             result = dict(
-                interfaces=[{'name': x, tag_key: True} for x in want]
+                interfaces=[dict(name=x, tagged=True) for x in self.want.tagged_interfaces]
             )
         else:
             return None

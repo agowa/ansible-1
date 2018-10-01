@@ -228,7 +228,7 @@ extends_documentation_fragment: gcp
 EXAMPLES = '''
 - name: create a health check
   gcp_compute_health_check:
-      name: "test_object"
+      name: testObject
       type: TCP
       tcp_health_check:
         port_name: service-health
@@ -237,9 +237,11 @@ EXAMPLES = '''
       healthy_threshold: 10
       timeout_sec: 2
       unhealthy_threshold: 5
-      project: "test_project"
-      auth_kind: "service_account"
-      service_account_file: "/tmp/auth.pem"
+      project: testProject
+      auth_kind: service_account
+      service_account_file: /tmp/auth.pem
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
 '''
 
@@ -510,9 +512,6 @@ def main():
         )
     )
 
-    if not module.params['scopes']:
-        module.params['scopes'] = ['https://www.googleapis.com/auth/compute']
-
     state = module.params['state']
     kind = 'compute#healthCheck'
 
@@ -565,10 +564,10 @@ def resource_to_request(module):
         u'timeoutSec': module.params.get('timeout_sec'),
         u'unhealthyThreshold': module.params.get('unhealthy_threshold'),
         u'type': module.params.get('type'),
-        u'httpHealthCheck': HealthCheckHttpHealthCheck(module.params.get('http_health_check', {}), module).to_request(),
-        u'httpsHealthCheck': HealthCheckHttpsHealthCheck(module.params.get('https_health_check', {}), module).to_request(),
-        u'tcpHealthCheck': HealthCheckTcpHealthCheck(module.params.get('tcp_health_check', {}), module).to_request(),
-        u'sslHealthCheck': HealthCheckSslHealthCheck(module.params.get('ssl_health_check', {}), module).to_request()
+        u'httpHealthCheck': HealChecHttpHealChec(module.params.get('http_health_check', {}), module).to_request(),
+        u'httpsHealthCheck': HealChecHttpHealChec(module.params.get('https_health_check', {}), module).to_request(),
+        u'tcpHealthCheck': HealChecTcpHealChec(module.params.get('tcp_health_check', {}), module).to_request(),
+        u'sslHealthCheck': HealChecSslHealChec(module.params.get('ssl_health_check', {}), module).to_request()
     }
     return_vals = {}
     for k, v in request.items():
@@ -645,10 +644,10 @@ def response_to_hash(module, response):
         u'timeoutSec': response.get(u'timeoutSec'),
         u'unhealthyThreshold': response.get(u'unhealthyThreshold'),
         u'type': response.get(u'type'),
-        u'httpHealthCheck': HealthCheckHttpHealthCheck(response.get(u'httpHealthCheck', {}), module).from_response(),
-        u'httpsHealthCheck': HealthCheckHttpsHealthCheck(response.get(u'httpsHealthCheck', {}), module).from_response(),
-        u'tcpHealthCheck': HealthCheckTcpHealthCheck(response.get(u'tcpHealthCheck', {}), module).from_response(),
-        u'sslHealthCheck': HealthCheckSslHealthCheck(response.get(u'sslHealthCheck', {}), module).from_response()
+        u'httpHealthCheck': HealChecHttpHealChec(response.get(u'httpHealthCheck', {}), module).from_response(),
+        u'httpsHealthCheck': HealChecHttpHealChec(response.get(u'httpsHealthCheck', {}), module).from_response(),
+        u'tcpHealthCheck': HealChecTcpHealChec(response.get(u'tcpHealthCheck', {}), module).from_response(),
+        u'sslHealthCheck': HealChecSslHealChec(response.get(u'sslHealthCheck', {}), module).from_response()
     }
 
 
@@ -664,7 +663,7 @@ def async_op_url(module, extra_data=None):
 def wait_for_operation(module, response):
     op_result = return_if_object(module, response, 'compute#operation')
     if op_result is None:
-        return {}
+        return None
     status = navigate_hash(op_result, ['status'])
     wait_done = wait_for_completion(status, op_result, module)
     return fetch_resource(module, navigate_hash(wait_done, ['targetLink']), 'compute#healthCheck')
@@ -689,7 +688,7 @@ def raise_if_errors(response, err_path, module):
         module.fail_json(msg=errors)
 
 
-class HealthCheckHttpHealthCheck(object):
+class HealChecHttpHealChec(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -716,7 +715,7 @@ class HealthCheckHttpHealthCheck(object):
         })
 
 
-class HealthCheckHttpsHealthCheck(object):
+class HealChecHttpHealChec(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -743,7 +742,7 @@ class HealthCheckHttpsHealthCheck(object):
         })
 
 
-class HealthCheckTcpHealthCheck(object):
+class HealChecTcpHealChec(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -770,7 +769,7 @@ class HealthCheckTcpHealthCheck(object):
         })
 
 
-class HealthCheckSslHealthCheck(object):
+class HealChecSslHealChec(object):
     def __init__(self, request, module):
         self.module = module
         if request:

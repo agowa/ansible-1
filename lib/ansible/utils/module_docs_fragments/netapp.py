@@ -39,7 +39,7 @@ options:
       required: true
       description:
       - This can be a Cluster-scoped or SVM-scoped account, depending on whether a Cluster-level or SVM-level API is required.
-        For more information, please read the documentation U(https://mysupport.netapp.com/NOW/download/software/nmsdk/9.4/).
+        For more information, please read the documentation U(https://goo.gl/BRu78Z).
       aliases: ['user']
   password:
       required: true
@@ -48,20 +48,9 @@ options:
       aliases: ['pass']
   https:
       description:
-      - Enable and disable https
+      - Enable and disabled https
       type: bool
       default: false
-  validate_certs:
-      description:
-      - If set to C(False), the SSL certificates will not be validated.
-      - This should only set to C(False) used on personally controlled sites using self-signed certificates.
-      default: true
-      type: bool
-  http_port:
-      description:
-      - Override the default port (80 or 443) with this port
-      type: int
-
 
 requirements:
   - A physical or virtual clustered Data ONTAP system. The modules were developed with Clustered Data ONTAP 9.3
@@ -85,7 +74,7 @@ options:
       required: true
       description:
       - This can be a Cluster-scoped or SVM-scoped account, depending on whether a Cluster-level or SVM-level API is required.
-        For more information, please read the documentation U(https://mysupport.netapp.com/NOW/download/software/nmsdk/9.4/).
+        For more information, please read the documentation U(https://goo.gl/BRu78Z).
       aliases: ['user']
   password:
       required: true
@@ -112,21 +101,17 @@ options:
   username:
       required: true
       description:
-      - Please ensure that the user has the adequate permissions. For more information, please read the official documentation
-        U(https://mysupport.netapp.com/documentation/docweb/index.html?productID=62636&language=en-US).
-      aliases: ['user']
+      - Please ensure that the user has the adequate permissions. For more information, please read the official documentation U(https://goo.gl/ddJa4Q).
   password:
       required: true
       description:
       - Password for the specified user.
-      aliases: ['pass']
 
 requirements:
-  - The modules were developed with SolidFire 10.1
-  - solidfire-sdk-python (1.1.0.92) or greater. Install using 'pip install solidfire-sdk-python'
+  - solidfire-sdk-python (1.1.0.92)
 
 notes:
-  - The modules prefixed with na\\_elementsw are built to support the SolidFire storage platform.
+  - The modules prefixed with C(sf\\_) are built to support the SolidFire storage platform.
 
 """
 
@@ -136,31 +121,24 @@ options:
   api_username:
     required: true
     description:
-    - The username to authenticate with the SANtricity Web Services Proxy or Embedded Web Services API.
+    - The username to authenticate with the SANtricity WebServices Proxy or embedded REST API.
   api_password:
     required: true
     description:
-    - The password to authenticate with the SANtricity Web Services Proxy or Embedded Web Services API.
+    - The password to authenticate with the SANtricity WebServices Proxy or embedded REST API.
   api_url:
     required: true
     description:
-    - The url to the SANtricity Web Services Proxy or Embedded Web Services API.
+    - The url to the SANtricity WebServices Proxy or embedded REST API.
     example:
     - https://prod-1.wahoo.acme.com/devmgr/v2
   validate_certs:
     required: false
     default: true
     description:
-        - Should https certificates be validated?
-    type: bool
+    - Should https certificates be validated?
   ssid:
     required: true
     description:
     - The ID of the array to manage. This value must be unique for each array.
-
-notes:
-  - The E-Series Ansible modules require either an instance of the Web Services Proxy (WSP), to be available to manage
-    the storage-system, or an E-Series storage-system that supports the Embedded Web Services API.
-  - Embedded Web Services is currently available on the E2800, E5700, EF570, and newer hardware models.
-  - M(netapp_e_storage_system) may be utilized for configuring the systems managed by a WSP instance.
     """

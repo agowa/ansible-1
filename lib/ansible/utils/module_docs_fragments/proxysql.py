@@ -27,8 +27,7 @@ options:
         are to be read.
     default: ''
 requirements:
-   - PyMySQL (Python 2.7 and Python 3.X), or
-   - MySQLdb (Python 2.x)
+   - MySQLdb
 '''
 
     # Documentation fragment for managing ProxySQL configuration

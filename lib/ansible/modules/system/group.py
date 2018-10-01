@@ -44,7 +44,7 @@ options:
         type: bool
         default: 'no'
     local:
-        version_added: "2.6"
+        version_added: "2.5"
         required: false
         default: 'no'
         description:

@@ -44,7 +44,7 @@ EXAMPLES = r'''
   vmware_about_facts:
     hostname: '{{ esxi_hostname }}'
     username: '{{ esxi_username }}'
-    password: '{{ esxi_password }}'
+    password: '{{ esxu_password }}'
   delegate_to: localhost
   register: esxi_about_info
 '''

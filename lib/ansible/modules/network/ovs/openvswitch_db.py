@@ -120,14 +120,15 @@ def map_obj_to_commands(want, have, module):
                                   "%(col)s"
             commands.append(templatized_command % module.params)
     else:
-        if want == have:
-            # Nothing to commit
-            return commands
         if module.params['key'] is None:
             templatized_command = "%(ovs-vsctl)s -t %(timeout)s set %(table)s %(record)s " \
                                   "%(col)s=%(value)s"
             commands.append(templatized_command % module.params)
-        else:
+        elif 'key' not in have.keys():
+            templatized_command = "%(ovs-vsctl)s -t %(timeout)s add %(table)s %(record)s " \
+                                  "%(col)s %(key)s=%(value)s"
+            commands.append(templatized_command % module.params)
+        elif want['value'] != have['value']:
             templatized_command = "%(ovs-vsctl)s -t %(timeout)s set %(table)s %(record)s " \
                                   "%(col)s:%(key)s=%(value)s"
             commands.append(templatized_command % module.params)
@@ -170,7 +171,7 @@ def map_config_to_obj(module):
             obj['key'] = module.params['key']
             obj['value'] = col_value_to_dict[module.params['key']]
     else:
-            obj['value'] = str(col_value.strip())
+            obj['value'] = col_value.strip()
 
     return obj
 
@@ -198,7 +199,7 @@ def main():
         'record': {'required': True},
         'col': {'required': True},
         'key': {'required': False},
-        'value': {'required': True, 'type': 'str'},
+        'value': {'required': True},
         'timeout': {'default': 5, 'type': 'int'},
     }
 

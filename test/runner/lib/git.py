@@ -21,7 +21,7 @@ class Git(object):
     def get_diff(self, args, git_options=None):
         """
         :type args: list[str]
-        :type git_options: list[str] | None
+        :type options: list[str]
         :rtype: list[str]
         """
         cmd = ['diff'] + args

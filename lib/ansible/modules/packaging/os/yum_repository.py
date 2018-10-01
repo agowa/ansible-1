@@ -69,7 +69,7 @@ options:
     default: 75
   description:
     description:
-      - A human readable string describing the repository. This option corresponds to the "name" property in the repo file.
+      - A human readable string describing the repository.
       - This parameter is only required if I(state) is set to C(present).
   enabled:
     description:
@@ -108,8 +108,6 @@ options:
     description:
       - Tells yum whether or not it should perform a GPG signature check on
         packages.
-      - No default setting. If the value is not set, the system setting from
-        C(/etc/yum.conf) or system default of C(no) will be used.
     type: bool
   gpgkey:
     description:
@@ -203,7 +201,7 @@ options:
     default: 21600
   name:
     description:
-      - Unique repository ID. This option builds the section name of the repository in the repo file.
+      - Unique repository ID.
       - This parameter is only required if I(state) is set to C(present) or
         C(absent).
     required: true

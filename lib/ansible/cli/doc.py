@@ -30,12 +30,10 @@ from ansible.cli import CLI
 from ansible.errors import AnsibleError, AnsibleOptionsError
 from ansible.module_utils._text import to_native
 from ansible.module_utils.six import string_types
-from ansible.parsing.metadata import extract_metadata
-from ansible.parsing.plugin_docs import read_docstub
 from ansible.parsing.yaml.dumper import AnsibleDumper
 from ansible.plugins.loader import module_loader, action_loader, lookup_loader, callback_loader, cache_loader, \
     vars_loader, connection_loader, strategy_loader, inventory_loader, shell_loader, fragment_loader
-from ansible.utils.plugin_docs import BLACKLIST, get_docstring
+from ansible.utils.plugin_docs import BLACKLIST, get_docstring, get_docstub
 
 try:
     from __main__ import display
@@ -132,7 +130,7 @@ class DocCLI(CLI):
             for path in paths:
                 self.plugin_list.update(self.find_plugins(path, plugin_type))
 
-            self.pager(self.get_plugin_list_text(loader))
+            self.pager(self.get_plugin_list_text(loader, doc_getter=get_docstub))
             return 0
 
         # process all plugins of type
@@ -146,9 +144,7 @@ class DocCLI(CLI):
                 plugin_data[plugin_type] = dict()
                 plugin_names = self.get_all_plugins_of_type(plugin_type)
                 for plugin_name in plugin_names:
-                    plugin_info = self.get_plugin_metadata(plugin_type, plugin_name)
-                    if plugin_info is not None:
-                        plugin_data[plugin_type][plugin_name] = plugin_info
+                    plugin_data[plugin_type][plugin_name] = self.get_plugin_metadata(plugin_type, plugin_name)
 
             self.pager(json.dumps(plugin_data, sort_keys=True, indent=4))
 
@@ -187,21 +183,12 @@ class DocCLI(CLI):
             raise AnsibleError("unable to load {0} plugin named {1} ".format(plugin_type, plugin_name))
 
         try:
-            doc, __, __, metadata = get_docstring(filename, fragment_loader, verbose=(self.options.verbosity > 0))
+            doc, __, __, __ = get_docstring(filename, fragment_loader, verbose=(self.options.verbosity > 0))
         except Exception:
             display.vvv(traceback.format_exc())
             raise AnsibleError(
                 "%s %s at %s has a documentation error formatting or is missing documentation." %
-                (plugin_type, plugin_name, filename))
-
-        if doc is None:
-            if 'removed' not in metadata.get('status', []):
-                raise AnsibleError(
-                    "%s %s at %s has a documentation error formatting or is missing documentation." %
-                    (plugin_type, plugin_name, filename))
-
-            # Removed plugins don't have any documentation
-            return None
+                (plugin_type, plugin_name, filename), wrap_text=False)
 
         return dict(
             name=plugin_name,
@@ -271,10 +258,6 @@ class DocCLI(CLI):
 
                 return text
             else:
-                if 'removed' in metadata.get('status', []):
-                    display.warning("%s %s has been removed\n" % (plugin_type, plugin))
-                    return
-
                 # this typically means we couldn't even parse the docstring, not just that the YAML is busted,
                 # probably a quoting issue.
                 raise AnsibleError("Parsing produced an empty object.")
@@ -321,7 +304,7 @@ class DocCLI(CLI):
 
         return plugin_list
 
-    def get_plugin_list_text(self, loader):
+    def get_plugin_list_text(self, loader, doc_getter=get_docstring):
         columns = display.columns
         displace = max(len(x) for x in self.plugin_list)
         linelimit = columns - displace - 5
@@ -342,19 +325,13 @@ class DocCLI(CLI):
 
                 doc = None
                 try:
-                    doc = read_docstub(filename)
+                    doc, plainexamples, returndocs, metadata = doc_getter(filename, fragment_loader)
                 except Exception:
                     display.warning("%s has a documentation formatting error" % plugin)
-                    continue
 
                 if not doc or not isinstance(doc, dict):
-                    with open(filename) as f:
-                        metadata = extract_metadata(module_data=f.read())
-                    if 'removed' not in metadata[0].get('status', []):
-                        desc = 'UNDOCUMENTED'
-                        display.warning("%s parsing did not produce documentation." % plugin)
-                    else:
-                        continue
+                    desc = 'UNDOCUMENTED'
+                    display.warning("%s parsing did not produce documentation." % plugin)
                 else:
                     desc = self.tty_ify(doc.get('short_description', 'INVALID SHORT DESCRIPTION').strip())
 

@@ -139,4 +139,10 @@ reboot_required:
     returned: success
     type: boolean
     sample: True
+restart_needed:
+    description: DEPRECATED in Ansible 2.4 (refer to C(reboot_required) instead). True when the target server requires a reboot to complete updates
+                 (no further updates can be installed until after a reboot)
+    returned: success
+    type: boolean
+    sample: True
 '''

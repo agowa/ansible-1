@@ -46,20 +46,21 @@ extends_documentation_fragment: vmware.documentation
 EXAMPLES = '''
 - name: Gather cluster facts from given datacenter
   vmware_cluster_facts:
-    hostname: '{{ vcenter_hostname }}'
-    username: '{{ vcenter_username }}'
-    password: '{{ vcenter_password }}'
+    hostname: 192.168.1.209
+    username: administrator@vsphere.local
+    password: vmware
     datacenter: ha-datacenter
-    validate_certs: no
+    validate_certs: False
   delegate_to: localhost
   register: cluster_facts
 
 - name: Gather facts from datacenter about specific cluster
   vmware_cluster_facts:
-    hostname: '{{ vcenter_hostname }}'
-    username: '{{ vcenter_username }}'
-    password: '{{ vcenter_password }}'
+    hostname: 192.168.1.209
+    username: administrator@vsphere.local
+    password: vmware
     cluster_name: DC0_C0
+    validate_certs: False
   delegate_to: localhost
   register: cluster_facts
 '''

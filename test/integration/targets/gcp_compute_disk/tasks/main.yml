@@ -18,11 +18,13 @@
       name: "{{ resource_name }}"
       size_gb: 50
       disk_encryption_key:
-        raw_key: SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0=
-      zone: us-central1-a
+        raw_key: 'SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0='
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: absent
 #----------------------------------------------------------
 - name: create a disk
@@ -30,11 +32,13 @@
       name: "{{ resource_name }}"
       size_gb: 50
       disk_encryption_key:
-        raw_key: SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0=
-      zone: us-central1-a
+        raw_key: 'SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0='
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: result
 - name: assert changed is true
@@ -43,31 +47,26 @@
       - result.changed == true
       - "result.kind == 'compute#disk'"
 - name: verify that disk was created
-  gcp_compute_disk_facts:
-      filters:
-         - name = {{ resource_name }}
-      zone: us-central1-a
-      project: "{{ gcp_project }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_cred_file }}"
-      scopes:
-        - https://www.googleapis.com/auth/compute
+  shell: |
+    gcloud compute disks describe  --project="{{ gcp_project}}"  --zone="us-central1-a"  "{{ resource_name }}"
   register: results
 - name: verify that command succeeded
   assert:
     that:
-      - results['items'] | length == 1
+      - results.rc == 0
 # ----------------------------------------------------------------------------
 - name: create a disk that already exists
   gcp_compute_disk:
       name: "{{ resource_name }}"
       size_gb: 50
       disk_encryption_key:
-        raw_key: SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0=
-      zone: us-central1-a
+        raw_key: 'SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0='
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: result
 - name: assert changed is false
@@ -81,11 +80,13 @@
       name: "{{ resource_name }}"
       size_gb: 50
       disk_encryption_key:
-        raw_key: SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0=
-      zone: us-central1-a
+        raw_key: 'SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0='
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: absent
   register: result
 - name: assert changed is true
@@ -94,31 +95,28 @@
       - result.changed == true
       - result.has_key('kind') == False
 - name: verify that disk was deleted
-  gcp_compute_disk_facts:
-      filters:
-         - name = {{ resource_name }}
-      zone: us-central1-a
-      project: "{{ gcp_project }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_cred_file }}"
-      scopes:
-        - https://www.googleapis.com/auth/compute
+  shell: |
+    gcloud compute disks describe  --project="{{ gcp_project}}"  --zone="us-central1-a"  "{{ resource_name }}"
   register: results
+  failed_when: results.rc == 0
 - name: verify that command succeeded
   assert:
     that:
-      - results['items'] | length == 0
+      - results.rc == 1
+      - "\"'projects/{{ gcp_project }}/zones/us-central1-a/disks/{{ resource_name }}' was not found\" in results.stderr"
 # ----------------------------------------------------------------------------
 - name: delete a disk that does not exist
   gcp_compute_disk:
       name: "{{ resource_name }}"
       size_gb: 50
       disk_encryption_key:
-        raw_key: SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0=
-      zone: us-central1-a
+        raw_key: 'SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0='
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: absent
   register: result
 - name: assert changed is false

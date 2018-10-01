@@ -246,13 +246,9 @@
             "Action": [
               "SNS:CreateTopic",
               "SNS:DeleteTopic",
-              "SNS:GetTopicAttributes",
-              "SNS:ListSubscriptions",
-              "SNS:ListSubscriptionsByTopic",
               "SNS:ListTopics",
-              "SNS:SetTopicAttributes",
-              "SNS:Subscribe",
-              "SNS:Unsubscribe"
+              "SNS:GetTopicAttributes",
+              "SNS:ListSubscriptionsByTopic"
             ],
             "Resource": [
               "*"

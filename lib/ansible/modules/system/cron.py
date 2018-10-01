@@ -157,13 +157,13 @@ EXAMPLES = '''
   cron:
     name: PATH
     env: yes
-    job: /opt/bin
+    value: /opt/bin
 
 - name: Creates an entry like "APP_HOME=/srv/app" and insert it after PATH declaration
   cron:
     name: APP_HOME
     env: yes
-    job: /srv/app
+    value: /srv/app
     insertafter: PATH
 
 - name: Creates a cron file under /etc/cron.d

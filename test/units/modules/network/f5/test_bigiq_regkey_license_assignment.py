@@ -112,7 +112,7 @@ class TestManager(unittest.TestCase):
             device_password='secret',
             managed='no',
             state='present',
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))

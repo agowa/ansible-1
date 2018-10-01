@@ -114,7 +114,6 @@ EXAMPLES = '''
     state: present
     purge_subscriptions: False
   register: topic_info
-
 - name: Deliver feedback to topic instead of owner email
   aws_ses_identity:
     identity: example@example.com
@@ -135,7 +134,6 @@ EXAMPLES = '''
     state: present
     purge_subscriptions: False
   register: topic_info
-
 - name: Delivery notifications to topic
   aws_ses_identity:
     identity: example@example.com

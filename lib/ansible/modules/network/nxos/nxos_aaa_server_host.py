@@ -309,8 +309,6 @@ def main():
             delta = proposed
         else:
             for key, value in proposed.items():
-                if key == 'encrypt_type':
-                    delta[key] = value
                 if value != existing.get(key):
                     if value != 'default' or existing.get(key):
                         delta[key] = value

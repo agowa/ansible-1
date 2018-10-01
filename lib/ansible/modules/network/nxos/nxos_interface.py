@@ -578,11 +578,7 @@ def map_config_to_obj(want, module):
                     obj['name'] = normalize_interface(interface_table.get('interface'))
                     obj['admin_state'] = interface_table.get('admin_state')
                     obj['description'] = interface_table.get('desc')
-                    mode = interface_table.get('eth_mode')
-                    if mode == 'access':
-                        obj['mode'] = 'layer2'
-                    else:
-                        obj['mode'] = 'layer3'
+                    obj['mode'] = interface_table.get('eth_mode')
 
         objs.append(obj)
 

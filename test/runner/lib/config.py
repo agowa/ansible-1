@@ -11,7 +11,6 @@ from lib.util import (
     docker_qualify_image,
     find_python,
     generate_pip_command,
-    get_docker_completion,
 )
 
 from lib.metadata import (
@@ -41,17 +40,12 @@ class EnvironmentConfig(CommonConfig):
             self.python = args.tox  # type: str
 
         self.docker = docker_qualify_image(args.docker)  # type: str
-        self.docker_raw = args.docker  # type: str
         self.remote = args.remote  # type: str
 
         self.docker_privileged = args.docker_privileged if 'docker_privileged' in args else False  # type: bool
         self.docker_pull = args.docker_pull if 'docker_pull' in args else False  # type: bool
         self.docker_keep_git = args.docker_keep_git if 'docker_keep_git' in args else False  # type: bool
-        self.docker_seccomp = args.docker_seccomp if 'docker_seccomp' in args else None  # type: str
         self.docker_memory = args.docker_memory if 'docker_memory' in args else None
-
-        if self.docker_seccomp is None:
-            self.docker_seccomp = get_docker_completion().get(self.docker_raw, {}).get('seccomp', 'default')
 
         self.tox_sitepackages = args.tox_sitepackages  # type: bool
 
@@ -236,13 +230,6 @@ class UnitsConfig(TestConfig):
         super(UnitsConfig, self).__init__(args, 'units')
 
         self.collect_only = args.collect_only  # type: bool
-
-        self.requirements_mode = args.requirements_mode if 'requirements_mode' in args else ''
-
-        if self.requirements_mode == 'only':
-            self.requirements = True
-        elif self.requirements_mode == 'skip':
-            self.requirements = False
 
 
 class CoverageConfig(EnvironmentConfig):

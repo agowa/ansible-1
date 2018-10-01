@@ -78,7 +78,7 @@ resource_pool_facts:
 '''
 
 try:
-    from pyVmomi import vim
+    from pyVmomi import vim, vmodl
 except ImportError:
     pass
 

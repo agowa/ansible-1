@@ -76,7 +76,6 @@ EXAMPLES = r'''
     pool_type: vlan
     pool_allocation_mode: dynamic
     state: present
-  delegate_to: localhost
 
 - name: Remove domain to VLAN pool binding
   aci_domain_to_encap_pool:
@@ -89,7 +88,6 @@ EXAMPLES = r'''
     pool_type: vlan
     pool_allocation_mode: dynamic
     state: absent
-  delegate_to: localhost
 
 - name: Query our domain to VLAN pool binding
   aci_domain_to_encap_pool:
@@ -101,8 +99,6 @@ EXAMPLES = r'''
     pool_type: vlan
     pool_allocation_mode: dynamic
     state: query
-  delegate_to: localhost
-  register: query_result
 
 - name: Query all domain to VLAN pool bindings
   aci_domain_to_encap_pool:
@@ -113,8 +109,6 @@ EXAMPLES = r'''
     pool_type: vlan
     pool_allocation_mode: dynamic
     state: query
-  delegate_to: localhost
-  register: query_result
 '''
 
 RETURN = r'''
@@ -331,8 +325,8 @@ def main():
         root_class=dict(
             aci_class=domain_class,
             aci_rn=domain_rn,
+            filter_target='eq({0}.name, "{1}")'.format(domain_class, domain),
             module_object=domain_mo,
-            target_filter={'name': domain},
         ),
         child_classes=[child_class],
     )

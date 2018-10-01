@@ -1,8 +1,22 @@
 #!/usr/bin/python
-
-# Copyright: (c) 2018, Extreme Networks Inc.
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
-
+#
+# (c) 2018 Extreme Networks Inc.
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+#
 from __future__ import (absolute_import, division, print_function)
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
@@ -42,6 +56,7 @@ options:
         before moving forward. If the conditional is not true
         within the configured number of retries, the task fails.
         See examples.
+    default: null
   match:
     description:
       - The I(match) argument is used in conjunction with the
@@ -50,6 +65,7 @@ options:
         then all conditionals in the wait_for must be satisfied.  If
         the value is set to C(any) then only one of the values must be
         satisfied.
+    required: false
     default: all
     choices: ['any', 'all']
   retries:
@@ -58,6 +74,7 @@ options:
         before it is considered failed. The command is run on the
         target device every retry and evaluated against the
         I(wait_for) conditions.
+    required: false
     default: 10
   interval:
     description:
@@ -65,6 +82,7 @@ options:
         of the command. If the command does not pass the specified
         conditions, the interval indicates how long to wait before
         trying the command again.
+    required: false
     default: 1
 """
 

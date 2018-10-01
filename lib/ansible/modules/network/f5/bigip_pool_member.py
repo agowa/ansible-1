@@ -26,7 +26,6 @@ options:
       - Name of the node to create, or re-use, when creating a new pool member.
       - This parameter is optional and, if not specified, a node name will be
         created automatically from either the specified C(address) or C(fqdn).
-      - The C(enabled) state is an alias of C(present).
     version_added: 2.6
   state:
     description:
@@ -114,11 +113,11 @@ options:
       - Specifies whether the system automatically creates ephemeral nodes using
         the IP addresses returned by the resolution of a DNS query for a node
         defined by an FQDN.
-      - When C(yes), the system generates an ephemeral node for each IP address
+      - When C(enabled), the system generates an ephemeral node for each IP address
         returned in response to a DNS query for the FQDN of the node. Additionally,
         when a DNS response indicates the IP address of an ephemeral node no longer
         exists, the system deletes the ephemeral node.
-      - When C(no), the system resolves a DNS query for the FQDN of the node
+      - When C(disabled), the system resolves a DNS query for the FQDN of the node
         with the single IP address associated with the FQDN.
       - When creating a new pool member, the default for this parameter is C(yes).
       - This parameter is ignored when C(reuse_nodes) is C(yes).
@@ -130,6 +129,24 @@ options:
     default: yes
     type: bool
     version_added: 2.6
+  session_state:
+    description:
+      - Set new session availability status for pool member.
+      - This parameter is deprecated and will be removed in Ansible 2.7. Use C(state)
+        C(enabled) or C(disabled).
+    version_added: 2.0
+    choices:
+      - enabled
+      - disabled
+  monitor_state:
+    description:
+      - Set monitor availability status for pool member.
+      - This parameter is deprecated and will be removed in Ansible 2.7. Use C(state)
+        C(enabled) or C(disabled).
+    version_added: 2.0
+    choices:
+      - enabled
+      - disabled
 extends_documentation_fragment: f5
 author:
   - Tim Rupp (@caphrim007)
@@ -264,32 +281,37 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.basic import env_fallback
 
 try:
-    from library.module_utils.network.f5.bigip import F5RestClient
+    from library.module_utils.network.f5.bigip import HAS_F5SDK
+    from library.module_utils.network.f5.bigip import F5Client
     from library.module_utils.network.f5.common import F5ModuleError
     from library.module_utils.network.f5.common import AnsibleF5Parameters
-    from library.module_utils.network.f5.common import fq_name
     from library.module_utils.network.f5.common import cleanup_tokens
-    from library.module_utils.network.f5.common import transform_name
-    from library.module_utils.network.f5.common import exit_json
-    from library.module_utils.network.f5.common import fail_json
-    from library.module_utils.network.f5.common import f5_argument_spec
+    from library.module_utils.network.f5.common import fq_name
     from library.module_utils.network.f5.common import is_valid_hostname
-    from library.module_utils.network.f5.ipaddress import is_valid_ip
-    from library.module_utils.network.f5.ipaddress import validate_ip_v6_address
+    from library.module_utils.network.f5.common import f5_argument_spec
+    try:
+        from library.module_utils.network.f5.common import iControlUnexpectedHTTPError
+    except ImportError:
+        HAS_F5SDK = False
 except ImportError:
-    from ansible.module_utils.network.f5.bigip import F5RestClient
+    from ansible.module_utils.network.f5.bigip import HAS_F5SDK
+    from ansible.module_utils.network.f5.bigip import F5Client
     from ansible.module_utils.network.f5.common import F5ModuleError
     from ansible.module_utils.network.f5.common import AnsibleF5Parameters
-    from ansible.module_utils.network.f5.common import fq_name
     from ansible.module_utils.network.f5.common import cleanup_tokens
-    from ansible.module_utils.network.f5.common import transform_name
-    from ansible.module_utils.network.f5.common import exit_json
-    from ansible.module_utils.network.f5.common import fail_json
-    from ansible.module_utils.network.f5.common import f5_argument_spec
+    from ansible.module_utils.network.f5.common import fq_name
     from ansible.module_utils.network.f5.common import is_valid_hostname
     from ansible.module_utils.network.f5.common import f5_argument_spec
-    from ansible.module_utils.network.f5.ipaddress import is_valid_ip
-    from ansible.module_utils.network.f5.ipaddress import validate_ip_v6_address
+    try:
+        from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
+    except ImportError:
+        HAS_F5SDK = False
+
+try:
+    import netaddr
+    HAS_NETADDR = True
+except ImportError:
+    HAS_NETADDR = False
 
 
 class Parameters(AnsibleF5Parameters):
@@ -301,17 +323,17 @@ class Parameters(AnsibleF5Parameters):
 
     api_attributes = [
         'rateLimit', 'connectionLimit', 'description', 'ratio', 'priorityGroup',
-        'address', 'fqdn', 'session', 'state',
+        'address', 'fqdn', 'session', 'state'
     ]
 
     returnables = [
         'rate_limit', 'connection_limit', 'description', 'ratio', 'priority_group',
-        'fqdn_auto_populate', 'session', 'state', 'fqdn', 'address',
+        'fqdn_auto_populate', 'session', 'state', 'fqdn', 'address'
     ]
 
     updatables = [
         'rate_limit', 'connection_limit', 'description', 'ratio', 'priority_group',
-        'fqdn_auto_populate', 'state',
+        'fqdn_auto_populate', 'state'
     ]
 
 
@@ -320,9 +342,10 @@ class ModuleParameters(Parameters):
     def full_name(self):
         delimiter = ':'
         try:
-            if validate_ip_v6_address(self.full_name_dict['name']):
+            addr = netaddr.IPAddress(self.full_name_dict['name'])
+            if addr.version == 6:
                 delimiter = '.'
-        except TypeError:
+        except netaddr.AddrFormatError:
             pass
         return '{0}{1}{2}'.format(self.full_name_dict['name'], delimiter, self.port)
 
@@ -374,22 +397,48 @@ class ModuleParameters(Parameters):
         return int(self._values['port'])
 
     @property
+    def state(self):
+        # TODO(Remove all of this state craziness in 2.7)
+        if self.session_state is not None or self.monitor_state is not None:
+            if self._values['state'] in ['enabled', 'disabled', 'forced_offline']:
+                self._values['__warnings'].append([{
+                    'msg': "'session_state' is deprecated and will be ignored in favor of 'state'.",
+                    'version': '2.7'
+                }])
+                return self._values['state']
+            else:
+                if self.session_state is not None:
+                    self._values['__warnings'].append([{
+                        'msg': "'session_state' is deprecated and will be removed in the future. Use 'state'.",
+                        'version': '2.7'
+                    }])
+                elif self.monitor_state is not None:
+                    self._values['__warnings'].append([{
+                        'msg': "'monitor_state' is deprecated and will be removed in the future. Use 'state'.",
+                        'version': '2.7'
+                    }])
+
+                if self.session_state == 'enabled' and self.monitor_state == 'enabled':
+                    return 'enabled'
+                elif self.session_state == 'disabled' and self.monitor_state == 'enabled':
+                    return 'disabled'
+                else:
+                    return 'forced_offline'
+        return self._values['state']
+
+    @property
     def address(self):
         if self._values['address'] is None:
             return None
         elif self._values['address'] == 'any6':
             return 'any6'
-        if is_valid_ip(self._values['address']):
-            return self._values['address']
-        raise F5ModuleError(
-            "The specified 'address' value is not a valid IP address."
-        )
-
-    @property
-    def state(self):
-        if self._values['state'] == 'enabled':
-            return 'present'
-        return self._values['state']
+        try:
+            addr = netaddr.IPAddress(self._values['address'])
+            return str(addr)
+        except netaddr.AddrFormatError:
+            raise F5ModuleError(
+                "The specified 'address' value is not a valid IP address."
+            )
 
 
 class ApiParameters(Parameters):
@@ -414,7 +463,7 @@ class ApiParameters(Parameters):
 
     @property
     def state(self):
-        if self._values['state'] in ['user-up', 'unchecked', 'fqdn-up-no-addr', 'fqdn-up'] and self._values['session'] in ['user-enabled']:
+        if self._values['state'] in ['user-up', 'unchecked', 'fqdn-up-no-addr'] and self._values['session'] in ['user-enabled']:
             return 'present'
         elif self._values['state'] in ['down', 'up'] and self._values['session'] == 'monitor-enabled':
             return 'present'
@@ -471,7 +520,7 @@ class ReportableChanges(Changes):
 
     @property
     def state(self):
-        if self._values['state'] in ['user-up', 'unchecked', 'fqdn-up-no-addr', 'fqdn-up'] and self._values['session'] in ['user-enabled']:
+        if self._values['state'] in ['user-up', 'unchecked', 'fqdn-up-no-addr'] and self._values['session'] in ['user-enabled']:
             return 'present'
         elif self._values['state'] in ['down', 'up'] and self._values['session'] == 'monitor-enabled':
             return 'present'
@@ -568,10 +617,13 @@ class ModuleManager(object):
         result = dict()
         state = self.want.state
 
-        if state in ['present', 'present', 'enabled', 'disabled', 'forced_offline']:
-            changed = self.present()
-        elif state == "absent":
-            changed = self.absent()
+        try:
+            if state in ['present', 'present', 'enabled', 'disabled', 'forced_offline']:
+                changed = self.present()
+            elif state == "absent":
+                changed = self.absent()
+        except iControlUnexpectedHTTPError as e:
+            raise F5ModuleError(str(e))
 
         reportable = ReportableChanges(params=self.changes.to_return())
         changes = reportable.to_return()
@@ -595,53 +647,25 @@ class ModuleManager(object):
             return self.create()
 
     def exists(self):
-        if not self.pool_exist():
-            F5ModuleError('The specified pool does not exist')
-
-        uri = "https://{0}:{1}/mgmt/tm/ltm/pool/{2}/members/{3}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.pool),
-            transform_name(self.want.partition, self.want.full_name)
-        )
-        resp = self.client.api.get(uri)
         try:
-            response = resp.json()
-        except ValueError:
-            return False
-        if resp.status == 404 or 'code' in response and response['code'] == 404:
-            return False
-        return True
-
-    def pool_exist(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/pool/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.pool)
+            pool = self.client.api.tm.ltm.pools.pool.load(
+                name=self.want.pool,
+                partition=self.want.partition
+            )
+        except Exception:
+            raise F5ModuleError('The specified pool does not exist')
+        result = pool.members_s.members.exists(
+            name=self.want.full_name,
+            partition=self.want.partition
         )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError:
-            return False
-        if resp.status == 404 or 'code' in response and response['code'] == 404:
-            return False
-        return True
+        return result
 
     def node_exists(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/node/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.node_name)
+        resource = self.client.api.tm.ltm.nodes.node.exists(
+            name=self.want.node_name,
+            partition=self.want.partition
         )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError:
-            return False
-        if resp.status == 404 or 'code' in response and response['code'] == 404:
-            return False
-        return True
+        return resource
 
     def update(self):
         self.have = self.read_current_from_device()
@@ -663,12 +687,13 @@ class ModuleManager(object):
         return True
 
     def _set_host_by_name(self):
-        if is_valid_ip(self.want.name):
+        try:
+            netaddr.IPAddress(self.want.name)
             self.want.update({
                 'fqdn': None,
                 'address': self.want.name
             })
-        else:
+        except netaddr.AddrFormatError:
             if not is_valid_hostname(self.want.name):
                 raise F5ModuleError(
                     "'name' is neither a valid IP address or FQDN name."
@@ -683,16 +708,28 @@ class ModuleManager(object):
             self.want.update({
                 'state': 'user-down',
                 'session': 'user-disabled',
+
+                # TODO(Remove in 2.7)
+                'session_state': None,
+                'monitor_state': None
             })
         elif self.want.state == 'disabled':
             self.want.update({
                 'state': 'user-up',
                 'session': 'user-disabled',
+
+                # TODO(Remove in 2.7)
+                'session_state': None,
+                'monitor_state': None
             })
         elif self.want.state in ['present', 'enabled']:
             self.want.update({
                 'state': 'user-up',
                 'session': 'user-enabled',
+
+                # TODO(Remove in 2.7)
+                'session_state': None,
+                'monitor_state': None
             })
 
     def _update_address_with_existing_nodes(self):
@@ -731,47 +768,27 @@ class ModuleManager(object):
 
     def create_on_device(self):
         params = self.changes.api_params()
-        params['name'] = self.want.full_name
-        params['partition'] = self.want.partition
-        uri = "https://{0}:{1}/mgmt/tm/ltm/pool/{2}/members".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.pool),
-
+        pool = self.client.api.tm.ltm.pools.pool.load(
+            name=self.want.pool,
+            partition=self.want.partition
         )
-        resp = self.client.api.post(uri, json=params)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] in [400, 403]:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        return response['selfLink']
+        pool.members_s.members.create(
+            name=self.want.full_name,
+            partition=self.want.partition,
+            **params
+        )
 
     def update_on_device(self):
         params = self.changes.api_params()
-        uri = "https://{0}:{1}/mgmt/tm/ltm/pool/{2}/members/{3}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.pool),
-            transform_name(self.want.partition, self.want.full_name)
-
+        pool = self.client.api.tm.ltm.pools.pool.load(
+            name=self.want.pool,
+            partition=self.want.partition
         )
-        resp = self.client.api.patch(uri, json=params)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
+        resource = pool.members_s.members.load(
+            name=self.want.full_name,
+            partition=self.want.partition
+        )
+        resource.modify(**params)
 
     def absent(self):
         if self.exists():
@@ -781,68 +798,42 @@ class ModuleManager(object):
         return False
 
     def remove_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/pool/{2}/members/{3}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.pool),
-            transform_name(self.want.partition, self.want.full_name)
-
+        pool = self.client.api.tm.ltm.pools.pool.load(
+            name=self.want.pool,
+            partition=self.want.partition
         )
-        response = self.client.api.delete(uri)
-        if response.status == 200:
-            return True
-        raise F5ModuleError(response.content)
+        resource = pool.members_s.members.load(
+            name=self.want.full_name,
+            partition=self.want.partition
+        )
+        if resource:
+            resource.delete()
 
     def remove_node_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/node/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.node_name)
+        resource = self.client.api.tm.ltm.nodes.node.load(
+            name=self.want.node_name,
+            partition=self.want.partition
         )
-        response = self.client.api.delete(uri)
-        if response.status == 200:
-            return True
-        raise F5ModuleError(response.content)
+        if resource:
+            resource.delete()
 
     def read_current_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/pool/{2}/members/{3}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.pool),
-            transform_name(self.want.partition, self.want.full_name)
-
+        pool = self.client.api.tm.ltm.pools.pool.load(
+            name=self.want.pool,
+            partition=self.want.partition
         )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        return ApiParameters(params=response)
+        resource = pool.members_s.members.load(
+            name=self.want.full_name,
+            partition=self.want.partition
+        )
+        return ApiParameters(params=resource.attrs)
 
     def read_current_node_from_device(self, node):
-        uri = "https://{0}:{1}/mgmt/tm/ltm/node/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, node)
+        resource = self.client.api.tm.ltm.nodes.node.load(
+            name=node,
+            partition=self.want.partition
         )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        return NodeApiParameters(params=response)
+        return NodeApiParameters(params=resource.attrs)
 
 
 class ArgumentSpec(object):
@@ -872,6 +863,17 @@ class ArgumentSpec(object):
             ),
             fqdn_auto_populate=dict(type='bool'),
             reuse_nodes=dict(type='bool', default=True),
+
+            # Deprecated params
+            # TODO(Remove in 2.7)
+            session_state=dict(
+                choices=['enabled', 'disabled'],
+                removed_in_version=2.7,
+            ),
+            monitor_state=dict(
+                choices=['enabled', 'disabled'],
+                removed_in_version=2.7,
+            ),
         )
         self.argument_spec = {}
         self.argument_spec.update(f5_argument_spec)
@@ -889,19 +891,22 @@ def main():
 
     module = AnsibleModule(
         argument_spec=spec.argument_spec,
-        supports_check_mode=spec.supports_check_mode,
+        supports_check_mode=spec.supports_check_mode
     )
-
-    client = F5RestClient(**module.params)
+    if not HAS_F5SDK:
+        module.fail_json(msg="The python f5-sdk module is required")
+    if not HAS_NETADDR:
+        module.fail_json(msg="The python netaddr module is required")
 
     try:
+        client = F5Client(**module.params)
         mm = ModuleManager(module=module, client=client)
         results = mm.exec_module()
         cleanup_tokens(client)
-        exit_json(module, results, client)
+        module.exit_json(**results)
     except F5ModuleError as ex:
         cleanup_tokens(client)
-        fail_json(module, ex, client)
+        module.fail_json(msg=str(ex))
 
 
 if __name__ == '__main__':

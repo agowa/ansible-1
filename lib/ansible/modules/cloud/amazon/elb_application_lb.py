@@ -102,7 +102,7 @@ options:
   state:
     description:
       - Create or destroy the load balancer.
-    default: present
+    required: true
     choices: [ 'present', 'absent' ]
   tags:
     description:
@@ -528,7 +528,7 @@ def main():
             subnets=dict(type='list'),
             security_groups=dict(type='list'),
             scheme=dict(default='internet-facing', choices=['internet-facing', 'internal']),
-            state=dict(choices=['present', 'absent'], default='present'),
+            state=dict(choices=['present', 'absent'], type='str'),
             tags=dict(type='dict'),
             wait_timeout=dict(type='int'),
             wait=dict(default=False, type='bool'),

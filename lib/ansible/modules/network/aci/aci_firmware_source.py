@@ -67,7 +67,6 @@ EXAMPLES = r'''
     url: foo.bar.cisco.com/download/cisco/aci/aci-msft-pkg-3.1.1i.zip
     url_protocol: http
     state: present
-  delegate_to: localhost
 
 - name: Remove firmware source
   aci_firmware_source:
@@ -76,7 +75,6 @@ EXAMPLES = r'''
     password: SomeSecretPassword
     source: aci-msft-pkg-3.1.1i.zip
     state: absent
-  delegate_to: localhost
 
 - name: Query a specific firmware source
   aci_firmware_source:
@@ -85,8 +83,6 @@ EXAMPLES = r'''
     password: SomeSecretPassword
     source: aci-msft-pkg-3.1.1i.zip
     state: query
-  delegate_to: localhost
-  register: query_result
 
 - name: Query all firmware sources
   aci_firmware_source:
@@ -94,8 +90,6 @@ EXAMPLES = r'''
     username: admin
     password: SomeSecretPassword
     state: query
-  delegate_to: localhost
-  register: query_result
 '''
 
 RETURN = r'''
@@ -242,8 +236,8 @@ def main():
         root_class=dict(
             aci_class='firmwareOSource',
             aci_rn='fabric/fwrepop',
+            filter_target='eq(firmwareOSource.name, "{0}")'.format(source),
             module_object=source,
-            target_filter={'name': source},
         ),
     )
     aci.get_existing()

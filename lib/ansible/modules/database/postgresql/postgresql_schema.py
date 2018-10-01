@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
-# Copyright: (c) 2016, Ansible Project
+# Copyright: Ansible Project
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -60,7 +59,7 @@ notes:
      on the remote host. For Ubuntu-based systems, install the C(postgresql), C(libpq-dev), and C(python-psycopg2) packages on the remote host before
      using this module.
 requirements: [ psycopg2 ]
-author: Flavien Chantelot (@Dorn-) <contact@flavien.io>
+author: "Flavien Chantelot <contact@flavien.io>"
 '''
 
 EXAMPLES = '''

@@ -12,7 +12,6 @@ except Exception:
     pass
 
 import fcntl
-import hashlib
 import os
 import signal
 import socket
@@ -35,23 +34,6 @@ from ansible.plugins.loader import connection_loader
 from ansible.utils.path import unfrackpath, makedirs_safe
 from ansible.utils.display import Display
 from ansible.utils.jsonrpc import JsonRpcServer
-
-
-def read_stream(byte_stream):
-    size = int(byte_stream.readline().strip())
-
-    data = byte_stream.read(size)
-    if len(data) < size:
-        raise Exception("EOF found before data was complete")
-
-    data_hash = to_text(byte_stream.readline().strip())
-    if data_hash != hashlib.sha1(data).hexdigest():
-        raise Exception("Read {0} bytes, but data did not match checksum".format(size))
-
-    # restore escaped loose \r characters
-    data = data.replace(br'\r', b'\r')
-
-    return data
 
 
 @contextmanager
@@ -104,6 +86,10 @@ class ConnectionProcess(object):
                                                     ansible_playbook_pid=self._ansible_playbook_pid)
             self.connection.set_options(var_options=variables)
             self.connection._connect()
+
+            # implementation plugins are updated while connection initialization
+            if hasattr(self.connection, 'set_implementation_plugin_options'):
+                self.connection.set_implementation_plugin_options(var_options=variables)
 
             self.connection._socket_path = self.socket_path
             self.srv.register(self.connection)
@@ -218,8 +204,25 @@ def main():
 
     try:
         # read the play context data via stdin, which means depickling it
-        vars_data = read_stream(stdin)
-        init_data = read_stream(stdin)
+        cur_line = stdin.readline()
+        init_data = b''
+
+        while cur_line.strip() != b'#END_INIT#':
+            if cur_line == b'':
+                raise Exception("EOF found before init data was complete")
+            init_data += cur_line
+            cur_line = stdin.readline()
+
+        cur_line = stdin.readline()
+        vars_data = b''
+
+        while cur_line.strip() != b'#END_VARS#':
+            if cur_line == b'':
+                raise Exception("EOF found before vars data was complete")
+            vars_data += cur_line
+            cur_line = stdin.readline()
+        # restore escaped loose \r characters
+        vars_data = vars_data.replace(br'\r', b'\r')
 
         if PY3:
             pc_data = cPickle.loads(init_data, encoding='bytes')
@@ -271,8 +274,6 @@ def main():
 
                     if rc == 0:
                         process.run()
-                    else:
-                        process.shutdown()
 
                     sys.exit(rc)
 

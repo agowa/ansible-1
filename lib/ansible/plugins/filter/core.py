@@ -34,30 +34,29 @@ import time
 import uuid
 import yaml
 
-from collections import MutableMapping
+from collections import MutableMapping, MutableSequence
 import datetime
 from functools import partial
 from random import Random, SystemRandom, shuffle, random
 
 from jinja2.filters import environmentfilter, do_groupby as _do_groupby
 
-from ansible.errors import AnsibleError, AnsibleFilterError
-from ansible.module_utils.six import iteritems, string_types, integer_types, reraise
+try:
+    import passlib.hash
+    HAS_PASSLIB = True
+except ImportError:
+    HAS_PASSLIB = False
+
+from ansible.errors import AnsibleFilterError
+from ansible.module_utils.six import iteritems, string_types, integer_types
 from ansible.module_utils.six.moves import reduce, shlex_quote
 from ansible.module_utils._text import to_bytes, to_text
 from ansible.module_utils.common.collections import is_sequence
 from ansible.parsing.ajson import AnsibleJSONEncoder
 from ansible.parsing.yaml.dumper import AnsibleDumper
-from ansible.utils.encrypt import passlib_or_crypt
 from ansible.utils.hashing import md5s, checksum_s
 from ansible.utils.unicode import unicode_wrap
 from ansible.utils.vars import merge_hash
-
-try:
-    from __main__ import display
-except ImportError:
-    from ansible.utils.display import Display
-    display = Display()
 
 UUID_NAMESPACE_ANSIBLE = uuid.UUID('361E6D51-FAEC-444A-9079-341386DA8E2E')
 
@@ -81,11 +80,25 @@ def to_json(a, *args, **kw):
 
 def to_nice_json(a, indent=4, *args, **kw):
     '''Make verbose, human readable JSON'''
+    # python-2.6's json encoder is buggy (can't encode hostvars)
+    if sys.version_info < (2, 7):
+        try:
+            import simplejson
+        except ImportError:
+            pass
+        else:
+            try:
+                major = int(simplejson.__version__.split('.')[0])
+            except Exception:
+                pass
+            else:
+                if major >= 2:
+                    return simplejson.dumps(a, default=AnsibleJSONEncoder.default, indent=indent, sort_keys=True, *args, **kw)
+
     try:
-        return json.dumps(a, indent=indent, sort_keys=True, separators=(',', ': '), cls=AnsibleJSONEncoder, *args, **kw)
-    except Exception as e:
+        return json.dumps(a, indent=indent, sort_keys=True, cls=AnsibleJSONEncoder, *args, **kw)
+    except Exception:
         # Fallback to the to_json filter
-        display.warning(u'Unable to convert data using to_nice_json, falling back to to_json: %s' % to_text(e))
         return to_json(a, *args, **kw)
 
 
@@ -178,11 +191,9 @@ def regex_search(value, regex, *args, **kwargs):
             return items
 
 
-def ternary(value, true_val, false_val, none_val=None):
+def ternary(value, true_val, false_val):
     '''  value ? true_val : false_val '''
-    if value is None and none_val is not None:
-        return none_val
-    elif bool(value):
+    if bool(value):
         return true_val
     else:
         return false_val
@@ -249,19 +260,42 @@ def get_hash(data, hashtype='sha1'):
     return h.hexdigest()
 
 
-def get_encrypted_password(password, hashtype='sha512', salt=None, salt_size=None, rounds=None):
-    passlib_mapping = {
-        'md5': 'md5_crypt',
-        'blowfish': 'bcrypt',
-        'sha256': 'sha256_crypt',
-        'sha512': 'sha512_crypt',
+def get_encrypted_password(password, hashtype='sha512', salt=None):
+
+    # TODO: find a way to construct dynamically from system
+    cryptmethod = {
+        'md5': '1',
+        'blowfish': '2a',
+        'sha256': '5',
+        'sha512': '6',
     }
 
-    hashtype = passlib_mapping.get(hashtype, hashtype)
-    try:
-        return passlib_or_crypt(password, hashtype, salt=salt, salt_size=salt_size, rounds=rounds)
-    except AnsibleError as e:
-        reraise(AnsibleFilterError, AnsibleFilterError(str(e), orig_exc=e), sys.exc_info()[2])
+    if hashtype in cryptmethod:
+        if salt is None:
+            r = SystemRandom()
+            if hashtype in ['md5']:
+                saltsize = 8
+            else:
+                saltsize = 16
+            saltcharset = string.ascii_letters + string.digits + '/.'
+            salt = ''.join([r.choice(saltcharset) for _ in range(saltsize)])
+
+        if not HAS_PASSLIB:
+            if sys.platform.startswith('darwin'):
+                raise AnsibleFilterError('|password_hash requires the passlib python module to generate password hashes on macOS/Darwin')
+            saltstring = "$%s$%s" % (cryptmethod[hashtype], salt)
+            encrypted = crypt.crypt(password, saltstring)
+        else:
+            if hashtype == 'blowfish':
+                cls = passlib.hash.bcrypt
+            else:
+                cls = getattr(passlib.hash, '%s_crypt' % hashtype)
+
+            encrypted = cls.encrypt(password, salt=salt)
+
+        return encrypted
+
+    return None
 
 
 def to_uuid(string):
@@ -273,11 +307,7 @@ def mandatory(a):
 
     ''' Make a variable mandatory '''
     if isinstance(a, Undefined):
-        if a._undefined_name is not None:
-            name = "'%s' " % to_text(a._undefined_name)
-        else:
-            name = ''
-        raise AnsibleFilterError("Mandatory variable %snot defined." % name)
+        raise AnsibleFilterError('Mandatory variable not defined.')
     return a
 
 
@@ -436,7 +466,7 @@ def flatten(mylist, levels=None):
         if element in (None, 'None', 'null'):
             # ignore undefined items
             break
-        elif is_sequence(element):
+        elif isinstance(element, MutableSequence):
             if levels is None:
                 ret.extend(flatten(element))
             elif levels >= 1:
@@ -496,7 +526,7 @@ def subelements(obj, subelements, skip_missing=False):
     return results
 
 
-def dict_to_list_of_dict_key_value_elements(mydict, key_name='key', value_name='value'):
+def dict_to_list_of_dict_key_value_elements(mydict):
     ''' takes a dictionary and transforms it into a list of dictionaries,
         with each having a 'key' and 'value' keys that correspond to the keys and values of the original '''
 
@@ -505,7 +535,7 @@ def dict_to_list_of_dict_key_value_elements(mydict, key_name='key', value_name='
 
     ret = []
     for key in mydict:
-        ret.append({key_name: key, value_name: mydict[key]})
+        ret.append({'key': key, 'value': mydict[key]})
     return ret
 
 

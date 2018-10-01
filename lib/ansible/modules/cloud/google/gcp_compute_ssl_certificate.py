@@ -76,8 +76,9 @@ extends_documentation_fragment: gcp
 EXAMPLES = '''
 - name: create a ssl certificate
   gcp_compute_ssl_certificate:
-      name: "test_object"
-      description: A certificate for testing. Do not use this certificate in production
+      name: testObject
+      description: |
+        "A certificate for testing. Do not use this certificate in production"
       certificate: |
         -----BEGIN CERTIFICATE-----
         MIICqjCCAk+gAwIBAgIJAIuJ+0352Kq4MAoGCCqGSM49BAMCMIGwMQswCQYDVQQG
@@ -102,9 +103,11 @@ EXAMPLES = '''
         AwEHoUQDQgAEHGzpcRJ4XzfBJCCPMQeXQpTXwlblimODQCuQ4mzkzTv0dXyB750f
         OGN02HtkpBOZzzvUARTR10JQoSe2/5PIwQ==
         -----END EC PRIVATE KEY-----
-      project: "test_project"
-      auth_kind: "service_account"
-      service_account_file: "/tmp/auth.pem"
+      project: testProject
+      auth_kind: service_account
+      service_account_file: /tmp/auth.pem
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
 '''
 
@@ -174,9 +177,6 @@ def main():
         )
     )
 
-    if not module.params['scopes']:
-        module.params['scopes'] = ['https://www.googleapis.com/auth/compute']
-
     state = module.params['state']
     kind = 'compute#sslCertificate'
 
@@ -186,10 +186,10 @@ def main():
     if fetch:
         if state == 'present':
             if is_different(module, fetch):
-                fetch = update(module, self_link(module), kind)
+                fetch = update(module, self_link(module), kind, fetch)
                 changed = True
         else:
-            delete(module, self_link(module), kind)
+            delete(module, self_link(module), kind, fetch)
             fetch = {}
             changed = True
     else:
@@ -209,12 +209,12 @@ def create(module, link, kind):
     return wait_for_operation(module, auth.post(link, resource_to_request(module)))
 
 
-def update(module, link, kind):
+def update(module, link, kind, fetch):
     auth = GcpSession(module, 'compute')
     return wait_for_operation(module, auth.put(link, resource_to_request(module)))
 
 
-def delete(module, link, kind):
+def delete(module, link, kind, fetch):
     auth = GcpSession(module, 'compute')
     return wait_for_operation(module, auth.delete(link))
 
@@ -314,7 +314,7 @@ def async_op_url(module, extra_data=None):
 def wait_for_operation(module, response):
     op_result = return_if_object(module, response, 'compute#operation')
     if op_result is None:
-        return {}
+        return None
     status = navigate_hash(op_result, ['status'])
     wait_done = wait_for_completion(status, op_result, module)
     return fetch_resource(module, navigate_hash(wait_done, ['targetLink']), 'compute#sslCertificate')

@@ -297,7 +297,6 @@
     triggers:
     - type: registration
       repetition:
-      # TODO: change to dict in 2.12 as a list format is deprecated
       - interval: PT1M
         duration: PT5M
         stop_at_duration_end: yes
@@ -314,9 +313,6 @@
   assert:
     that:
     - create_trigger_repetition_check is changed
-    - create_trigger_repetition_check.deprecations|count == 1
-    - create_trigger_repetition_check.deprecations[0].version == "2.12"
-    - create_trigger_repetition_check.deprecations[0].msg == "repetition is a list, should be defined as a dict"
     - create_trigger_repetition_result_check.task_exists == True
     - create_trigger_repetition_result_check.triggers|count == 1
     - create_trigger_repetition_result_check.triggers[0].type == "TASK_TRIGGER_MONTHLYDOW"
@@ -338,7 +334,7 @@
     triggers:
     - type: registration
       repetition:
-        interval: PT1M
+      - interval: PT1M
         duration: PT5M
         stop_at_duration_end: yes
   register: create_trigger_repetition
@@ -372,7 +368,7 @@
     triggers:
     - type: registration
       repetition:
-        interval: PT1M
+      - interval: PT1M
         duration: PT5M
         stop_at_duration_end: yes
   register: create_trigger_repetition_again
@@ -391,7 +387,7 @@
     triggers:
     - type: registration
       repetition:
-        interval: PT10M
+      - interval: PT10M
         duration: PT20M
         stop_at_duration_end: no
   register: change_trigger_repetition_check
@@ -426,7 +422,7 @@
     triggers:
     - type: registration
       repetition:
-        interval: PT10M
+      - interval: PT10M
         duration: PT20M
         stop_at_duration_end: no
   register: change_trigger_repetition
@@ -460,7 +456,7 @@
     triggers:
     - type: registration
       repetition:
-        interval: PT10M
+      - interval: PT10M
         duration: PT20M
         stop_at_duration_end: no
   register: change_trigger_repetition_again

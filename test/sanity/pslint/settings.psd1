@@ -1,7 +1,6 @@
 @{
     ExcludeRules=@(
         'PSPossibleIncorrectComparisonWithNull',
-        'PSUseOutputTypeCorrectly',
         'PSUseShouldProcessForStateChangingFunctions'
     )
 }

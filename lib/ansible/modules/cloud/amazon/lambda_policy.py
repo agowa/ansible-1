@@ -236,14 +236,7 @@ def extract_statement(policy, sid):
     for statement in policy['Statement']:
         if statement['Sid'] == sid:
             policy_statement['action'] = statement['Action']
-            try:
-                policy_statement['principal'] = statement['Principal']['Service']
-            except KeyError:
-                pass
-            try:
-                policy_statement['principal'] = statement['Principal']['AWS']
-            except KeyError:
-                pass
+            policy_statement['principal'] = statement['Principal']['Service']
             try:
                 policy_statement['source_arn'] = statement['Condition']['ArnLike']['AWS:SourceArn']
             except KeyError:

@@ -79,7 +79,12 @@ options:
     choices:
       - present
       - absent
+notes:
+  - Requires the netaddr Python package on the host. This is as easy as pip
+    install netaddr.
 extends_documentation_fragment: f5
+requirements:
+  - netaddr
 author:
   - Tim Rupp (@caphrim007)
 '''
@@ -153,33 +158,37 @@ from ansible.module_utils.basic import env_fallback
 from ansible.module_utils.parsing.convert_bool import BOOLEANS_TRUE
 
 try:
-    from library.module_utils.network.f5.bigip import F5RestClient
+    from library.module_utils.network.f5.bigip import HAS_F5SDK
+    from library.module_utils.network.f5.bigip import F5Client
     from library.module_utils.network.f5.common import F5ModuleError
     from library.module_utils.network.f5.common import AnsibleF5Parameters
     from library.module_utils.network.f5.common import cleanup_tokens
     from library.module_utils.network.f5.common import fq_name
     from library.module_utils.network.f5.common import f5_argument_spec
-    from library.module_utils.network.f5.common import transform_name
-    from library.module_utils.network.f5.common import exit_json
-    from library.module_utils.network.f5.common import fail_json
-    from library.module_utils.network.f5.ipaddress import is_valid_ip
-    from library.module_utils.network.f5.ipaddress import ipv6_netmask_to_cidr
-    from library.module_utils.compat.ipaddress import ip_address
-    from library.module_utils.compat.ipaddress import ip_network
+
+    try:
+        from library.module_utils.network.f5.common import iControlUnexpectedHTTPError
+    except ImportError:
+        HAS_F5SDK = False
 except ImportError:
-    from ansible.module_utils.network.f5.bigip import F5RestClient
+    from ansible.module_utils.network.f5.bigip import HAS_F5SDK
+    from ansible.module_utils.network.f5.bigip import F5Client
     from ansible.module_utils.network.f5.common import F5ModuleError
     from ansible.module_utils.network.f5.common import AnsibleF5Parameters
     from ansible.module_utils.network.f5.common import cleanup_tokens
     from ansible.module_utils.network.f5.common import fq_name
     from ansible.module_utils.network.f5.common import f5_argument_spec
-    from ansible.module_utils.network.f5.common import transform_name
-    from ansible.module_utils.network.f5.common import exit_json
-    from ansible.module_utils.network.f5.common import fail_json
-    from ansible.module_utils.network.f5.ipaddress import is_valid_ip
-    from ansible.module_utils.network.f5.ipaddress import ipv6_netmask_to_cidr
-    from ansible.module_utils.compat.ipaddress import ip_address
-    from ansible.module_utils.compat.ipaddress import ip_network
+
+    try:
+        from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
+    except ImportError:
+        HAS_F5SDK = False
+
+try:
+    import netaddr
+    HAS_NETADDR = True
+except ImportError:
+    HAS_NETADDR = False
 
 
 class Parameters(AnsibleF5Parameters):
@@ -191,37 +200,18 @@ class Parameters(AnsibleF5Parameters):
     }
 
     updatables = [
-        'description',
-        'gateway_address',
-        'vlan',
-        'pool',
-        'mtu',
-        'reject',
-        'destination',
-        'route_domain',
-        'netmask',
+        'description', 'gateway_address', 'vlan',
+        'pool', 'mtu', 'reject', 'destination', 'route_domain',
+        'netmask'
     ]
 
     returnables = [
-        'vlan',
-        'gateway_address',
-        'destination',
-        'pool',
-        'description',
-        'reject',
-        'mtu',
-        'netmask',
-        'route_domain',
+        'vlan', 'gateway_address', 'destination', 'pool', 'description',
+        'reject', 'mtu', 'netmask', 'route_domain'
     ]
 
     api_attributes = [
-        'tmInterface',
-        'gw',
-        'network',
-        'blackhole',
-        'description',
-        'pool',
-        'mtu',
+        'tmInterface', 'gw', 'network', 'blackhole', 'description', 'pool', 'mtu'
     ]
 
     def to_return(self):
@@ -249,9 +239,9 @@ class ModuleParameters(Parameters):
         if self._values['gateway_address'] is None:
             return None
         try:
-            ip = ip_network(u'%s' % str(self._values['gateway_address']))
-            return str(ip.network_address)
-        except ValueError:
+            ip = netaddr.IPNetwork(self._values['gateway_address'])
+            return str(ip.ip)
+        except netaddr.core.AddrFormatError:
             raise F5ModuleError(
                 "The provided gateway_address is not an IP address"
             )
@@ -267,17 +257,17 @@ class ModuleParameters(Parameters):
     def destination(self):
         if self._values['destination'] is None:
             return None
-        if self._values['destination'].startswith('default'):
+        if self._values['destination'] == 'default':
             self._values['destination'] = '0.0.0.0/0'
-        if self._values['destination'].startswith('default-inet6'):
-            self._values['destination'] = '::/0'
+        if self._values['destination'] == 'default-inet6':
+            self._values['destination'] = '::/::'
         try:
-            ip = ip_network(u'%s' % str(self.destination_ip))
+            ip = netaddr.IPNetwork(self.destination_ip)
             if self.route_domain:
-                return '{0}%{2}/{1}'.format(str(ip.network_address), ip.prefixlen, self.route_domain)
+                return '{0}%{2}/{1}'.format(ip.ip, ip.prefixlen, self.route_domain)
             else:
-                return '{0}/{1}'.format(str(ip.network_address), ip.prefixlen)
-        except ValueError:
+                return '{0}/{1}'.format(ip.ip, ip.prefixlen)
+        except netaddr.core.AddrFormatError:
             raise F5ModuleError(
                 "The provided destination is not an IP address"
             )
@@ -285,43 +275,36 @@ class ModuleParameters(Parameters):
     @property
     def destination_ip(self):
         if self._values['destination']:
-            ip = ip_network(u'{0}/{1}'.format(self._values['destination'], self.netmask))
-            return '{0}/{1}'.format(str(ip.network_address), ip.prefixlen)
+            ip = netaddr.IPNetwork('{0}/{1}'.format(self._values['destination'], self.netmask))
+            return '{0}/{1}'.format(ip.ip, ip.prefixlen)
 
     @property
     def netmask(self):
         if self._values['netmask'] is None:
             return None
-        try:
+        # Check if numeric
+        if isinstance(self._values['netmask'], int):
             result = int(self._values['netmask'])
-
-            # CIDRs between 0 and 128 are allowed
-            if 0 <= result <= 128:
+            if 0 < result < 256:
                 return result
-            else:
-                raise F5ModuleError(
-                    "The provided netmask must be between 0 and 32 for IPv4, or "
-                    "0 and 128 for IPv6."
-                )
-        except ValueError:
-            # not a number, but that's ok. Further processing necessary
-            pass
-
-        if not is_valid_ip(self._values['netmask']):
             raise F5ModuleError(
                 'The provided netmask {0} is neither in IP or CIDR format'.format(result)
             )
-
-        # Create a temporary address to check if the netmask IP is v4 or v6
-        addr = ip_address(u'{0}'.format(str(self._values['netmask'])))
-        if addr.version == 4:
-            # Create a more real v4 address using a wildcard, so that we can determine
-            # the CIDR value from it.
-            ip = ip_network(u'0.0.0.0/%s' % str(self._values['netmask']))
-            result = ip.prefixlen
         else:
-            result = ipv6_netmask_to_cidr(self._values['netmask'])
-
+            try:
+                # IPv4 netmask
+                address = '0.0.0.0/' + self._values['netmask']
+                ip = netaddr.IPNetwork(address)
+            except netaddr.AddrFormatError as ex:
+                try:
+                    # IPv6 netmask
+                    address = '::/' + self._values['netmask']
+                    ip = netaddr.IPNetwork(address)
+                except netaddr.AddrFormatError as ex:
+                    raise F5ModuleError(
+                        'The provided netmask {0} is neither in IP or CIDR format'.format(self._values['netmask'])
+                    )
+            result = int(ip.prefixlen)
         return result
 
 
@@ -330,7 +313,7 @@ class ApiParameters(Parameters):
     def route_domain(self):
         if self._values['destination'] is None:
             return None
-        pattern = r'([0-9a-zA-Z\:\-\.]+%(?P<rd>[0-9]+))'
+        pattern = r'([0-9:]%(?P<rd>[0-9]+))'
         matches = re.search(pattern, self._values['destination'])
         if matches:
             return int(matches.group('rd'))
@@ -340,35 +323,24 @@ class ApiParameters(Parameters):
     def destination_ip(self):
         if self._values['destination'] is None:
             return None
-        destination = self.destination_to_network()
-
+        if self._values['destination'] == 'default':
+            self._values['destination'] = '0.0.0.0/0'
+        if self._values['destination'] == 'default-inet6':
+            self._values['destination'] = '::/::'
         try:
             pattern = r'(?P<rd>%[0-9]+)'
-            addr = re.sub(pattern, '', destination)
-            ip = ip_network(u'%s' % str(addr))
-            return '{0}/{1}'.format(str(ip.network_address), ip.prefixlen)
-        except ValueError:
+            addr = re.sub(pattern, '', self._values['destination'])
+            ip = netaddr.IPNetwork(addr)
+            return '{0}/{1}'.format(ip.ip, ip.prefixlen)
+        except netaddr.core.AddrFormatError:
             raise F5ModuleError(
-                "The provided destination is not an IP address."
+                "The provided destination is not an IP address"
             )
 
     @property
     def netmask(self):
-        destination = self.destination_to_network()
-        ip = ip_network(u'%s' % str(destination))
+        ip = netaddr.IPNetwork(self.destination_ip)
         return int(ip.prefixlen)
-
-    def destination_to_network(self):
-        destination = self._values['destination']
-        if destination.startswith('default%'):
-            destination = '0.0.0.0%{0}/0'.format(destination.split('%')[1])
-        elif destination.startswith('default-inet6%'):
-            destination = '::%{0}/0'.format(destination.split('%')[1])
-        elif destination.startswith('default-inet6'):
-            destination = '::/0'
-        elif destination.startswith('default'):
-            destination = '0.0.0.0/0'
-        return destination
 
 
 class Changes(Parameters):
@@ -474,10 +446,13 @@ class ModuleManager(object):
         result = dict()
         state = self.want.state
 
-        if state == "present":
-            changed = self.present()
-        elif state == "absent":
-            changed = self.absent()
+        try:
+            if state == "present":
+                changed = self.present()
+            elif state == "absent":
+                changed = self.absent()
+        except iControlUnexpectedHTTPError as e:
+            raise F5ModuleError(str(e))
 
         reportable = ReportableChanges(params=self.changes.to_return())
         changes = reportable.to_return()
@@ -495,19 +470,12 @@ class ModuleManager(object):
             )
 
     def exists(self):
-        uri = "https://{0}:{1}/mgmt/tm/net/route/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.name)
-        )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError:
-            return False
-        if resp.status == 404 or 'code' in response and response['code'] == 404:
-            return False
-        return True
+        collection = self.client.api.tm.net.routes.get_collection()
+        for resource in collection:
+            if resource.name == self.want.name:
+                if resource.partition == self.want.partition:
+                    return True
+        return False
 
     def present(self):
         if self.exists():
@@ -555,62 +523,27 @@ class ModuleManager(object):
 
         # The 'network' attribute is not updatable
         params.pop('network', None)
-
-        uri = "https://{0}:{1}/mgmt/tm/net/route/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.name)
+        result = self.client.api.tm.net.routes.route.load(
+            name=self.want.name,
+            partition=self.want.partition
         )
-        resp = self.client.api.patch(uri, json=params)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
+        result.modify(**params)
 
     def read_current_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/net/route/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.name)
+        resource = self.client.api.tm.net.routes.route.load(
+            name=self.want.name,
+            partition=self.want.partition
         )
-        resp = self.client.api.get(uri)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] == 400:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
-        return ApiParameters(params=response)
+        result = resource.attrs
+        return ApiParameters(params=result)
 
     def create_on_device(self):
         params = self.want.api_params()
-        params['name'] = self.want.name
-        params['partition'] = self.want.partition
-        uri = "https://{0}:{1}/mgmt/tm/net/route/".format(
-            self.client.provider['server'],
-            self.client.provider['server_port']
+        self.client.api.tm.net.routes.route.create(
+            name=self.want.name,
+            partition=self.want.partition,
+            **params
         )
-        resp = self.client.api.post(uri, json=params)
-        try:
-            response = resp.json()
-        except ValueError as ex:
-            raise F5ModuleError(str(ex))
-
-        if 'code' in response and response['code'] in [400, 403]:
-            if 'message' in response:
-                raise F5ModuleError(response['message'])
-            else:
-                raise F5ModuleError(resp.content)
 
     def absent(self):
         if self.exists():
@@ -626,14 +559,12 @@ class ModuleManager(object):
         return True
 
     def remove_from_device(self):
-        uri = "https://{0}:{1}/mgmt/tm/net/route/{2}".format(
-            self.client.provider['server'],
-            self.client.provider['server_port'],
-            transform_name(self.want.partition, self.want.name)
+        result = self.client.api.tm.net.routes.route.load(
+            name=self.want.name,
+            partition=self.want.partition
         )
-        resp = self.client.api.delete(uri)
-        if resp.status == 200:
-            return True
+        if result:
+            result.delete()
 
 
 class ArgumentSpec(object):
@@ -665,7 +596,7 @@ class ArgumentSpec(object):
         self.argument_spec.update(f5_argument_spec)
         self.argument_spec.update(argument_spec)
         self.mutually_exclusive = [
-            ['gateway_address', 'pool', 'reject']
+            ['gateway_address', 'vlan', 'pool', 'reject']
         ]
 
 
@@ -677,16 +608,20 @@ def main():
         supports_check_mode=spec.supports_check_mode,
         mutually_exclusive=spec.mutually_exclusive,
     )
+    if not HAS_F5SDK:
+        module.fail_json(msg="The python f5-sdk module is required")
+    if not HAS_NETADDR:
+        module.fail_json(msg="The python netaddr module is required")
 
     try:
-        client = F5RestClient(**module.params)
+        client = F5Client(**module.params)
         mm = ModuleManager(module=module, client=client)
         results = mm.exec_module()
         cleanup_tokens(client)
-        exit_json(module, results, client)
+        module.exit_json(**results)
     except F5ModuleError as ex:
         cleanup_tokens(client)
-        fail_json(module, ex, client)
+        module.fail_json(msg=str(ex))
 
 
 if __name__ == '__main__':

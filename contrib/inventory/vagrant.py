@@ -40,7 +40,10 @@ import re
 from paramiko import SSHConfig
 from optparse import OptionParser
 from collections import defaultdict
-import json
+try:
+    import json
+except Exception:
+    import simplejson as json
 
 from ansible.module_utils._text import to_text
 from ansible.module_utils.six.moves import StringIO

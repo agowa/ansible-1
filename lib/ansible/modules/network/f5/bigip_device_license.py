@@ -61,20 +61,18 @@ author:
 EXAMPLES = '''
 - name: License BIG-IP using a key
   bigip_device_license:
+    server: "lb.mydomain.com"
+    user: "admin"
+    password: "secret"
     license_key: "XXXXX-XXXXX-XXXXX-XXXXX-XXXXXXX"
-    provider:
-      server: "lb.mydomain.com"
-      user: "admin"
-      password: "secret"
   delegate_to: localhost
 
 - name: Remove the license from the system
   bigip_device_license:
+    server: "lb.mydomain.com"
+    user: "admin"
+    password: "secret"
     state: "absent"
-    provider:
-      server: "lb.mydomain.com"
-      user: "admin"
-      password: "secret"
   delegate_to: localhost
 '''
 
@@ -83,9 +81,11 @@ RETURN = r'''
 '''
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.urls import open_url
 from ansible.module_utils.six import iteritems
 
 import re
+import sys
 import time
 import xml.etree.ElementTree
 
@@ -95,8 +95,11 @@ try:
     from library.module_utils.network.f5.common import F5ModuleError
     from library.module_utils.network.f5.common import AnsibleF5Parameters
     from library.module_utils.network.f5.common import cleanup_tokens
+    from library.module_utils.network.f5.common import fq_name
     from library.module_utils.network.f5.common import f5_argument_spec
     from library.module_utils.network.f5.icontrol import iControlRestSession
+    from library.module_utils.network.f5.icontrol import Request
+    from library.module_utils.network.f5.icontrol import Response
     try:
         from library.module_utils.network.f5.common import iControlUnexpectedHTTPError
         from f5.sdk_exception import UtilError
@@ -108,8 +111,11 @@ except ImportError:
     from ansible.module_utils.network.f5.common import F5ModuleError
     from ansible.module_utils.network.f5.common import AnsibleF5Parameters
     from ansible.module_utils.network.f5.common import cleanup_tokens
+    from ansible.module_utils.network.f5.common import fq_name
     from ansible.module_utils.network.f5.common import f5_argument_spec
     from ansible.module_utils.network.f5.icontrol import iControlRestSession
+    from ansible.module_utils.network.f5.icontrol import Request
+    from ansible.module_utils.network.f5.icontrol import Response
     try:
         from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
         from f5.sdk_exception import UtilError

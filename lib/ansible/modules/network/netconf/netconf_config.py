@@ -9,158 +9,112 @@ __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
-                    'supported_by': 'network'}
+                    'supported_by': 'community'}
 
 
 DOCUMENTATION = '''
 ---
 module: netconf_config
-version_added: "2.2"
 author: "Leandro Lisboa Penz (@lpenz)"
 short_description: netconf device configuration
 description:
     - Netconf is a network management protocol developed and standardized by
       the IETF. It is documented in RFC 6241.
+
     - This module allows the user to send a configuration XML file to a netconf
       device, and detects if there was a configuration change.
-extends_documentation_fragment: netconf
+notes:
+    - This module supports devices with and without the candidate and
+      confirmed-commit capabilities. It always use the safer feature.
+    - This module supports the use of connection=netconf
+version_added: "2.2"
 options:
-  content:
+  host:
     description:
-     - The configuration data as defined by the device's data models, the value can be either in
-       xml string format or text format. The format of the configuration should be supported by remote
-       Netconf server
-    aliases: ['xml']
-  target:
+     - the hostname or ip address of the netconf device
+    required: true
+  port:
     description:
-      Name of the configuration datastore to be edited.
-      - auto, uses candidate and fallback to running
-      - candidate, edit <candidate/> datastore and then commit
-      - running, edit <running/> datastore directly
-    default: auto
+     - the netconf port
+    default: 830
+    required: false
+  hostkey_verify:
+    description:
+     - if true, the ssh host key of the device must match a ssh key present on the host
+     - if false, the ssh host key of the device is not checked
+    default: true
+    required: false
+  look_for_keys:
+    description:
+     - if true, enables looking in the usual locations for ssh keys (e.g. ~/.ssh/id_*)
+     - if false, disables looking for ssh keys
+    default: true
+    required: false
     version_added: "2.4"
-    aliases: ['datastore']
-  source_datastore:
+  allow_agent:
     description:
-    - Name of the configuration datastore to use as the source to copy the configuration
-      to the datastore mentioned by C(target) option. The values can be either I(running), I(candidate),
-      I(startup) or a remote URL
-    version_added: "2.7"
-    aliases: ['source']
-  format:
+     - if true, enables querying SSH agent (if found) for keys
+     - if false, disables querying the SSH agent for ssh keys
+    default: true
+    required: false
+    version_added: "2.4"
+  datastore:
     description:
-    - The format of the configuration provided as value of C(content). Accepted values are I(xml) and I(text) and
-      the given configuration format should be supported by remote Netconf server.
-    default: xml
-    choices: ['xml', 'text']
-    version_added: "2.7"
-  lock:
-    description:
-      - Instructs the module to explicitly lock the datastore specified as C(target). By setting the option
-        value I(always) is will explicitly lock the datastore mentioned in C(target) option. It the value
-        is I(never) it will not lock the C(target) datastore. The value I(if-supported) lock the C(target)
-        datastore only if it is supported by the remote Netconf server.
-    default: always
-    choices: ['never', 'always', 'if-supported']
-    version_added: "2.7"
-  default_operation:
-    description:
-    - The default operation for <edit-config> rpc, valid values are I(merge), I(replace) and I(none).
-      If the default value is merge, the configuration data in the C(content) option is merged at the
-      corresponding level in the C(target) datastore. If the value is replace the data in the C(content)
-      option completely replaces the configuration in the C(target) datastore. If the value is none the C(target)
-      datastore is unaffected by the configuration in the config option, unless and until the incoming configuration
-      data uses the C(operation) operation to request a different operation.
-    default: merge
-    choices: ['merge', 'replace', 'none']
-    version_added: "2.7"
-  confirm:
-    description:
-    - This argument will configure a timeout value for the commit to be confirmed before it is automatically
-      rolled back. If the C(confirm_commit) argument is set to False, this argument is silently ignored. If the
-      value of this argument is set to 0, the commit is confirmed immediately. The remote host MUST
-      support :candidate and :confirmed-commit capability for this option to .
-    default: 0
-    version_added: "2.7"
-  confirm_commit:
-    description:
-    - This argument will execute commit operation on remote device. It can be used to confirm a previous commit.
-    type: bool
-    default: 'no'
-    version_added: "2.7"
-  error_option:
-    description:
-    - This option control the netconf server action after a error is occured while editing the configuration.
-      If the value is I(stop-on-error) abort the config edit on first error, if value is I(continue-on-error)
-      it continues to process configuration data on error, error is recorded and negative response is generated
-      if any errors occur. If value is C(rollback-on-error) it rollback to the original configuration in case
-      any error occurs, this requires the remote Netconf server to support the :rollback-on-error capability.
-    default: stop-on-error
-    choices: ['stop-on-error', 'continue-on-error', 'rollback-on-error']
-    version_added: "2.7"
+     - auto, uses candidate and fallback to running
+     - candidate, edit <candidate/> datastore and then commit
+     - running, edit <running/> datastore directly
+    default: auto
+    required: false
+    version_added: "2.4"
   save:
     description:
-      - The C(save) argument instructs the module to save the configuration in C(target) datastore to the
-        startup-config if changed and if :startup capability is supported by Netconf server.
+      - The C(save) argument instructs the module to save the running-
+        config to the startup-config if changed.
+    required: false
     default: false
     version_added: "2.4"
-  backup:
+  username:
     description:
-      - This argument will cause the module to create a full backup of
-        the current C(running-config) from the remote device before any
-        changes are made.  The backup file is written to the C(backup)
-        folder in the playbook root directory or role root directory, if
-        playbook is part of an ansible role. If the directory does not exist,
-        it is created.
-    type: bool
-    default: 'no'
-    version_added: "2.7"
-  delete:
+     - the username to authenticate with
+    required: true
+  password:
     description:
-      - It instructs the module to delete the configuration from value mentioned in C(target) datastore.
-    type: bool
-    default: 'no'
-    version_added: "2.7"
-  commit:
+     - password of the user to authenticate with
+    required: true
+  xml:
     description:
-      - This boolean flag controls if the configuration changes should be committed or not after editing the
-        candidate datastore. This oprion is supported only if remote Netconf server supports :candidate
-        capability. If the value is set to I(False) commit won't be issued after edit-config operation
-        and user needs to handle commit or discard-changes explicitly.
-    type: bool
-    default: True
-    version_added: "2.7"
-  validate:
-    description:
-      - This boolean flag if set validates the content of datastore given in C(target) option.
-        For this option to work remote Netconf server shoule support :validate capability.
-    type: bool
-    default: False
-    version_added: "2.7"
+     - the XML content to send to the device
+    required: false
   src:
     description:
-    - Specifies the source path to the xml file that contains the configuration or configuration template
-      to load. The path to the source file can either be the full path on the Ansible control host or
-      a relative path from the playbook or role root directory. This argument is mutually exclusive with I(xml).
+      - Specifies the source path to the xml file that contains the configuration
+        or configuration template to load.  The path to the source file can
+        either be the full path on the Ansible control host or a relative
+        path from the playbook or role root directory.  This argument is mutually
+        exclusive with I(xml).
+    required: false
     version_added: "2.4"
+
+
 requirements:
+  - "python >= 2.6"
   - "ncclient"
-notes:
-  - This module requires the netconf system service be enabled on
-    the remote device being managed.
-  - This module supports devices with and without the candidate and
-    confirmed-commit capabilities. It will always use the safer feature.
-  - This module supports the use of connection=netconf
 '''
 
 EXAMPLES = '''
 - name: use lookup filter to provide xml configuration
   netconf_config:
-    content: "{{ lookup('file', './config.xml') }}"
+    xml: "{{ lookup('file', './config.xml') }}"
+    host: 10.0.0.1
+    username: admin
+    password: admin
 
 - name: set ntp server in the device
   netconf_config:
-    content: |
+    host: 10.0.0.1
+    username: admin
+    password: admin
+    xml: |
         <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
             <system xmlns="urn:ietf:params:xml:ns:yang:ietf-system">
                 <ntp>
@@ -175,7 +129,10 @@ EXAMPLES = '''
 
 - name: wipe ntp configuration
   netconf_config:
-    content: |
+    host: 10.0.0.1
+    username: admin
+    password: admin
+    xml: |
         <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
             <system xmlns="urn:ietf:params:xml:ns:yang:ietf-system">
                 <ntp>
@@ -187,12 +144,6 @@ EXAMPLES = '''
             </system>
         </config>
 
-- name: configure interface while providing different private key file path (for connection=netconf)
-  netconf_config:
-    backup: yes
-  register: backup_junos_location
-  vars:
-    ansible_private_key_file: /home/admin/.ssh/newprivatekeyfile
 '''
 
 RETURN = '''
@@ -201,196 +152,191 @@ server_capabilities:
     returned: success
     type: list
     sample: ['urn:ietf:params:netconf:base:1.1','urn:ietf:params:netconf:capability:confirmed-commit:1.0','urn:ietf:params:netconf:capability:candidate:1.0']
-backup_path:
-  description: The full path to the backup file
-  returned: when backup is yes
-  type: string
-  sample: /playbooks/ansible/backup/config.2016-07-16@22:28:34
-diff:
-  description: If --diff option in enabled while running, the before and after configuration change are
-               returned as part of before and after key.
-  returned: when diff is enabled
-  type: dict
-  sample:
-    "after": "<rpc-reply>\n<data>\n<configuration>\n<version>17.3R1.10</version>...<--snip-->"
-    "before": "<rpc-reply>\n<data>\n<configuration>\n <version>17.3R1.10</version>...<--snip-->"
+
 '''
 
-from ansible.module_utils._text import to_text
-from ansible.module_utils.basic import AnsibleModule, env_fallback
+import traceback
+import xml.dom.minidom
+
+from xml.etree.ElementTree import fromstring, tostring
+
+try:
+    import ncclient.manager
+    HAS_NCCLIENT = True
+except ImportError:
+    HAS_NCCLIENT = False
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils._text import to_native
 from ansible.module_utils.connection import Connection, ConnectionError
-from ansible.module_utils.network.netconf.netconf import get_capabilities, get_config, sanitize_xml
+
+
+def netconf_edit_config(m, xml, commit, retkwargs, datastore, capabilities, local_connection):
+    m.lock(target=datastore)
+    try:
+        if datastore == "candidate":
+            m.discard_changes()
+
+        config_before = m.get_config(source=datastore)
+        m.edit_config(target=datastore, config=xml)
+        config_after = m.get_config(source=datastore)
+
+        if local_connection:
+            changed = config_before.data_xml != config_after.data_xml
+        else:
+            changed = config_before != config_after
+
+        if changed and commit and datastore == "candidate":
+            if ":confirmed-commit" in capabilities:
+                m.commit(confirmed=True)
+                m.commit()
+            else:
+                m.commit()
+
+        return changed
+    finally:
+        m.unlock(target=datastore)
+
+
+# ------------------------------------------------------------------- #
+# Main
 
 
 def main():
-    """ main entry point for module execution
-    """
-    argument_spec = dict(
-        content=dict(aliases=['xml']),
-        target=dict(choices=['auto', 'candidate', 'running'], default='auto', aliases=['datastore']),
-        source_datastore=dict(aliases=['source']),
-        format=dict(choices=['xml', 'text'], default='xml'),
-        lock=dict(choices=['never', 'always', 'if-supported'], default='always'),
-        default_operation=dict(choices=['merge', 'replace', 'none'], default='merge'),
-        confirm=dict(type='int', default=0),
-        confirm_commit=dict(type='bool', default=False),
-        error_option=dict(choices=['stop-on-error', 'continue-on-error', 'rollback-on-error'], default='stop-on-error'),
-        backup=dict(type='bool', default=False),
-        save=dict(type='bool', default=False),
-        delete=dict(type='bool', default=False),
-        commit=dict(type='bool', default=True),
-        validate=dict(type='bool', default=False),
+
+    module = AnsibleModule(
+        argument_spec=dict(
+            xml=dict(type='str', required=False),
+            src=dict(type='path', required=False),
+
+            datastore=dict(choices=['auto', 'candidate', 'running'], default='auto'),
+            save=dict(type='bool', default=False),
+
+            # connection arguments
+            host=dict(type='str'),
+            port=dict(type='int', default=830),
+
+            username=dict(type='str', no_log=True),
+            password=dict(type='str', no_log=True),
+
+            hostkey_verify=dict(type='bool', default=True),
+            look_for_keys=dict(type='bool', default=True),
+
+            allow_agent=dict(type='bool', default=True),
+        ),
+        mutually_exclusive=[('xml', 'src')]
     )
 
-    # deprecated options
-    netconf_top_spec = {
-        'src': dict(type='path', removed_in_version=2.11),
-        'host': dict(removed_in_version=2.11),
-        'port': dict(removed_in_version=2.11, type='int', default=830),
-        'username': dict(fallback=(env_fallback, ['ANSIBLE_NET_USERNAME']), removed_in_version=2.11, no_log=True),
-        'password': dict(fallback=(env_fallback, ['ANSIBLE_NET_PASSWORD']), removed_in_version=2.11, no_log=True),
-        'ssh_keyfile': dict(fallback=(env_fallback, ['ANSIBLE_NET_SSH_KEYFILE']), removed_in_version=2.11, type='path'),
-        'hostkey_verify': dict(removed_in_version=2.11, type='bool', default=True),
-        'look_for_keys': dict(removed_in_version=2.11, type='bool', default=True),
-        'timeout': dict(removed_in_version=2.11, type='int', default=10),
-    }
-    argument_spec.update(netconf_top_spec)
+    if not module._socket_path and not HAS_NCCLIENT:
+        module.fail_json(msg='could not import the python library '
+                         'ncclient required by this module')
 
-    mutually_exclusive = [('content', 'src', 'source', 'delete', 'confirm_commit')]
-    required_one_of = [('content', 'src', 'source', 'delete', 'confirm_commit')]
-
-    module = AnsibleModule(argument_spec=argument_spec,
-                           required_one_of=required_one_of,
-                           mutually_exclusive=mutually_exclusive,
-                           supports_check_mode=True)
-
-    if module.params['src']:
-        module.deprecate(msg="argument 'src' has been deprecated. Use file lookup plugin instead to read file contents.",
-                         version="2.11")
-
-    config = module.params['content'] or module.params['src']
-    target = module.params['target']
-    lock = module.params['lock']
-    source = module.params['source_datastore']
-    delete = module.params['delete']
-    confirm_commit = module.params['confirm_commit']
-    confirm = module.params['confirm']
-    validate = module.params['validate']
-    save = module.params['save']
-
-    conn = Connection(module._socket_path)
-    capabilities = get_capabilities(module)
-    operations = capabilities['device_operations']
-
-    supports_commit = operations.get('supports_commit', False)
-    supports_writable_running = operations.get('supports_writable_running', False)
-    supports_startup = operations.get('supports_startup', False)
-
-    # identify target datastore
-    if target == 'candidate' and not supports_commit:
-        module.fail_json(msg=':candidate is not supported by this netconf server')
-    elif target == 'running' and not supports_writable_running:
-        module.fail_json(msg=':writable-running is not supported by this netconf server')
-    elif target == 'auto':
-        if supports_commit:
-            target = 'candidate'
-        elif supports_writable_running:
-            target = 'running'
-        else:
-            module.fail_json(msg='neither :candidate nor :writable-running are supported by this netconf server')
-
-    # Netconf server capability validation against input options
-    if save and not supports_startup:
-        module.fail_json(msg='cannot copy <%s/> to <startup/>, while :startup is not supported' % target)
-
-    if confirm_commit and not operations.get('supports_confirm_commit', False):
-        module.fail_json(msg='confirm commit is not supported by Netconf server')
-
-    if confirm_commit or (confirm > 0) and not operations.get('supports_confirm_commit', False):
-        module.fail_json(msg='confirm commit is not supported by this netconf server')
-
-    if validate and not operations.get('supports_validate', False):
-        module.fail_json(msg='validate is not supported by this netconf server')
-
-    if lock == 'never':
-        execute_lock = False
-    elif target in operations.get('lock_datastore', []):
-        # lock is requested (always/if-support) and supported => lets do it
-        execute_lock = True
+    if (module.params['src']):
+        config_xml = str(module.params['src'])
+    elif module.params['xml']:
+        config_xml = str(module.params['xml'])
     else:
-        # lock is requested (always/if-supported) but not supported => issue warning
-        module.warn("lock operation on '%s' source is not supported on this device" % target)
-        execute_lock = (lock == 'always')
+        module.fail_json(msg='Option src or xml must be provided')
 
-    result = {'changed': False, 'server_capabilities': capabilities.get('server_capabilities', [])}
-    before = None
-    locked = False
-    try:
-        if module.params['backup']:
-            response = get_config(module, target, lock=execute_lock)
-            before = to_text(response, errors='surrogate_then_replace').strip()
-            result['__backup__'] = before.strip()
-        if validate:
-            conn.validate(target)
-        if source:
-            if not module.check_mode:
-                conn.copy(source, target)
-            result['changed'] = True
-        elif delete:
-            if not module.check_mode:
-                conn.delete(target)
-            result['changed'] = True
-        elif confirm_commit:
-            if not module.check_mode:
-                conn.commit()
-            result['changed'] = True
+    local_connection = module._socket_path is None
+
+    if not local_connection:
+        m = Connection(module._socket_path)
+        capabilities = module.from_json(m.get_capabilities())
+        server_capabilities = capabilities.get('server_capabilities')
+
+    else:
+        nckwargs = dict(
+            host=module.params['host'],
+            port=module.params['port'],
+            hostkey_verify=module.params['hostkey_verify'],
+            allow_agent=module.params['allow_agent'],
+            look_for_keys=module.params['look_for_keys'],
+            username=module.params['username'],
+            password=module.params['password'],
+        )
+
+        try:
+            m = ncclient.manager.connect(**nckwargs)
+            server_capabilities = list(m.server_capabilities)
+        except ncclient.transport.errors.AuthenticationError:
+            module.fail_json(
+                msg='authentication failed while connecting to device'
+            )
+        except Exception as e:
+            module.fail_json(msg='error connecting to the device: %s' % to_native(e), exception=traceback.format_exc())
+
+        try:
+            xml.dom.minidom.parseString(config_xml)
+        except Exception as e:
+            module.fail_json(msg='error parsing XML: %s' % to_native(e), exception=traceback.format_exc())
+
+    retkwargs = dict()
+    retkwargs['server_capabilities'] = server_capabilities
+
+    server_capabilities = '\n'.join(server_capabilities)
+
+    if module.params['datastore'] == 'candidate':
+        if ':candidate' in server_capabilities:
+            datastore = 'candidate'
         else:
-            if module.check_mode and not supports_commit:
-                module.warn("check mode not supported as Netconf server doesn't support candidate capability")
-                result['changed'] = True
-                module.exit_json(**result)
+            if local_connection:
+                m.close_session()
+            module.fail_json(
+                msg=':candidate is not supported by this netconf server'
+            )
+    elif module.params['datastore'] == 'running':
+        if ':writable-running' in server_capabilities:
+            datastore = 'running'
+        else:
+            if local_connection:
+                m.close_session()
+            module.fail_json(
+                msg=':writable-running is not supported by this netconf server'
+            )
+    elif module.params['datastore'] == 'auto':
+        if ':candidate' in server_capabilities:
+            datastore = 'candidate'
+        elif ':writable-running' in server_capabilities:
+            datastore = 'running'
+        else:
+            if local_connection:
+                m.close_session()
+            module.fail_json(
+                msg='neither :candidate nor :writable-running are supported by this netconf server'
+            )
+    else:
+        if local_connection:
+            m.close_session()
+        module.fail_json(
+            msg=module.params['datastore'] + ' datastore is not supported by this ansible module'
+        )
 
-            if lock:
-                conn.lock(target=target)
-                locked = True
-            if before is None:
-                before = to_text(conn.get_config(source=target), errors='surrogate_then_replace').strip()
+    if module.params['save']:
+        if ':startup' not in server_capabilities:
+            module.fail_json(
+                msg='cannot copy <running/> to <startup/>, while :startup is not supported'
+            )
 
-            kwargs = {
-                'config': config,
-                'target': target,
-                'default_operation': module.params['default_operation'],
-                'error_option': module.params['error_option'],
-                'format': module.params['format'],
-            }
-            conn.edit_config(**kwargs)
-            if supports_commit and module.params['commit']:
-                if not module.check_mode:
-                    timeout = confirm if confirm > 0 else None
-                    conn.commit(confirmed=confirm_commit, timeout=timeout)
-                else:
-                    conn.discard_changes()
-
-            after = to_text(conn.get_config(source='running'), errors='surrogate_then_replace').strip()
-
-            sanitized_before = sanitize_xml(before)
-            sanitized_after = sanitize_xml(after)
-            if sanitized_before != sanitized_after:
-                result['changed'] = True
-
-            if result['changed']:
-                if save and not module.check_mode:
-                    conn.copy_config(target, 'startup')
-                if module._diff:
-                    result['diff'] = {'before': sanitized_before, 'after': sanitized_after}
-
-    except ConnectionError as e:
-        module.fail_json(msg=to_text(e, errors='surrogate_then_replace').strip())
+    try:
+        changed = netconf_edit_config(
+            m=m,
+            xml=config_xml,
+            commit=True,
+            retkwargs=retkwargs,
+            datastore=datastore,
+            capabilities=server_capabilities,
+            local_connection=local_connection
+        )
+        if changed and module.params['save']:
+            m.copy_config(source="running", target="startup")
+    except Exception as e:
+        module.fail_json(msg='error editing configuration: %s' % to_native(e), exception=traceback.format_exc())
     finally:
-        if locked:
-            conn.unlock(target=target)
+        if local_connection:
+            m.close_session()
 
-    module.exit_json(**result)
+    module.exit_json(changed=changed, **retkwargs)
 
 
 if __name__ == '__main__':

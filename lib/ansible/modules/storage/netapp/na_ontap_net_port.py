@@ -13,13 +13,14 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = """
 module: na_ontap_net_port
-short_description: NetApp ONTAP network ports.
+short_description: Manage NetApp Ontap network ports.
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+author:
+- Chris Archibald (carchi@netapp.com), Kevin Hutton (khutton@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)
 description:
-- Modify a ONTAP network port.
+- Modify a Ontap network port.
 options:
   state:
     description:
@@ -44,7 +45,6 @@ options:
   duplex_admin:
     description:
     - Specifies the user preferred duplex setting of the port.
-    - Valid values auto, half, full
   speed_admin:
     description:
     - Specifies the user preferred speed setting of the port.

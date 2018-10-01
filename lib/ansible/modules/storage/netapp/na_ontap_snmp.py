@@ -15,7 +15,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 
 DOCUMENTATION = '''
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+author: "Archana Ganesan (garchana@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)"
 description:
   - "Create/Delete SNMP community"
 extends_documentation_fragment:
@@ -35,7 +35,7 @@ options:
     description:
       - "Whether the specified SNMP community should exist or not."
     default: 'present'
-short_description: NetApp ONTAP SNMP community
+short_description: "Manage NetApp SNMP community"
 version_added: "2.6"
 '''
 

@@ -46,7 +46,7 @@ EXAMPLES = r'''
     hostname: '{{ vcenter_hostname }}'
     username: '{{ vcenter_username }}'
     password: '{{ vcenter_password }}'
-    cluster_name: '{{ cluster_name }}'
+    cluster_name: cluster_name
   delegate_to: localhost
 
 - name: Gather portgroup facts about ESXi Host system
@@ -59,7 +59,7 @@ EXAMPLES = r'''
 '''
 
 RETURN = r'''
-hosts_portgroup_facts:
+hosts_firewall_facts:
     description: metadata about host's portgroup configuration
     returned: on success
     type: dict

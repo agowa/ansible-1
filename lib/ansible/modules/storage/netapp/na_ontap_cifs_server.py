@@ -17,14 +17,14 @@ ANSIBLE_METADATA = {
 DOCUMENTATION = '''
 ---
 module: na_ontap_cifs_server
-short_description: NetApp ONTAP CIFS server configuration
+short_description: cifs server configuration
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+author: chhaya gunawat (chhayag@netapp.com)
 
 description:
-    - Creating / deleting and modifying the CIFS server.
+    - Creating / deleting and modifying the CIF server .
 
 options:
 
@@ -60,19 +60,6 @@ options:
     description:
     -  The NetBIOS name of the domain or workgroup this CIFS server belongs to.
 
-  ou:
-    description:
-    - The Organizational Unit (OU) within the Windows Active Directory
-      this CIFS server belongs to.
-    version_added: '2.7'
-
-  force:
-    type: bool
-    description:
-    - If this is set and a machine account with the same name as
-      specified in 'cifs_server_name' exists in the Active Directory, it
-      will be overwritten and reused.
-    version_added: '2.7'
 
   vserver:
     description:
@@ -128,8 +115,7 @@ class NetAppOntapcifsServer(object):
             domain=dict(required=False, type='str'),
             admin_user_name=dict(required=False, type='str'),
             admin_password=dict(required=False, type='str'),
-            ou=dict(required=False, type='str'),
-            force=dict(required=False, type='bool'),
+
             vserver=dict(required=True, type='str'),
         ))
 
@@ -149,8 +135,6 @@ class NetAppOntapcifsServer(object):
         self.service_state = params['service_state']
         self.admin_user_name = params['admin_user_name']
         self.admin_password = params['admin_password']
-        self.ou = params['ou']
-        self.force = params['force']
 
         if HAS_NETAPP_LIB is False:
             self.module.fail_json(msg="the python NetApp-Lib module is required")
@@ -201,10 +185,6 @@ class NetAppOntapcifsServer(object):
             options['admin-username'] = self.admin_user_name
         if self.admin_password is not None:
             options['admin-password'] = self.admin_password
-        if self.ou is not None:
-            options['organizational-unit'] = self.ou
-        if self.force is not None:
-            options['force-account-overwrite'] = str(self.force).lower()
 
         cifs_server_create = netapp_utils.zapi.NaElement.create_node_with_children(
             'cifs-server-create', **options)

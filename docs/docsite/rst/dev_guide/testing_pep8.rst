@@ -1,7 +1,3 @@
-:orphan:
-
-.. _testing_pep8:
-
 *****
 PEP 8
 *****

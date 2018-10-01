@@ -48,7 +48,7 @@ options:
         description:
           - State of the container
         required: True
-        choices: ["latest", "present", "absent", "rollback"]
+        choices: ["latest", "absent", "rollback"]
         default: "latest"
     mode:
         description:

@@ -57,7 +57,6 @@ class ShippableChanges(object):
             self.is_tag = os.environ['IS_GIT_TAG'] == 'true'
             self.commit = os.environ['COMMIT']
             self.project_id = os.environ['PROJECT_ID']
-            self.commit_range = os.environ['SHIPPABLE_COMMIT_RANGE']
         except KeyError as ex:
             raise MissingEnvironmentVariable(name=ex.args[0])
 
@@ -65,8 +64,8 @@ class ShippableChanges(object):
             raise ChangeDetectionNotSupported('Change detection is not supported for tags.')
 
         if self.is_pr:
-            self.paths = sorted(git.get_diff_names([self.commit_range]))
-            self.diff = git.get_diff([self.commit_range])
+            self.paths = sorted(git.get_diff_names(['origin/%s' % self.branch, '--']))
+            self.diff = git.get_diff(['origin/%s' % self.branch, '--'])
         else:
             merge_runs = self.get_merge_runs(self.project_id, self.branch)
             last_successful_commit = self.get_last_successful_commit(git, merge_runs)

@@ -70,10 +70,10 @@ extends_documentation_fragment: vmware.documentation
 EXAMPLES = '''
 - name: Enter VSAN-Compliant Maintenance Mode
   vmware_maintenancemode:
-    hostname: "{{ vcenter_hostname }}"
-    username: "{{ vcenter_username }}"
-    password: "{{ vcenter_password }}"
-    esxi_hostname: "{{ esxi_hostname }}"
+    hostname: vc_host
+    username: vc_user
+    password: vc_pass
+    esxi_hostname: esxi.host.example
     vsan: ensureObjectAccessibility
     evacuate: yes
     timeout: 3600

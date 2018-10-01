@@ -150,9 +150,7 @@ options:
                                 required: false
                             disk_type:
                                 description:
-                                    - Reference to a gcompute_disk_type resource.
-                                    - Specifies the disk type to use to create the instance.
-                                    - If not specified, the default is pd-standard.
+                                    - A reference to DiskType resource.
                                 required: false
                             source_image:
                                 description:
@@ -195,11 +193,7 @@ options:
                         choices: ['READ_WRITE', 'READ_ONLY']
                     source:
                         description:
-                            - Reference to a gcompute_disk resource. When creating a new instance, one of initializeParams.sourceImage
-                              or disks.source is required.
-                            - If desired, you can also attach existing non-root persistent disks using this property.
-                              This field is only applicable for persistent disks.
-                            - Note that for InstanceTemplate, specify the disk name, not the URL for the disk.
+                            - A reference to Disk resource.
                         required: false
                     type:
                         description:
@@ -209,7 +203,7 @@ options:
                         choices: ['SCRATCH', 'PERSISTENT']
             machine_type:
                 description:
-                    - Reference to a gcompute_machine_type resource.
+                    - A reference to MachineType resource.
                 required: true
             metadata:
                 description:
@@ -251,13 +245,8 @@ options:
                                 required: true
                             nat_ip:
                                 description:
-                                    - Specifies the title of a gcompute_address.
-                                    - An external IP address associated with this instance.
-                                    - Specify an unused static external IP address available to the project or leave this
-                                      field undefined to use an IP from a shared ephemeral IP address pool. If you specify
-                                      a static external IP address, it must live in the same region as the zone of the
-                                      instance.
-                                required: false
+                                    - A reference to Address resource.
+                                required: true
                             type:
                                 description:
                                     - The type of configuration. The default and only option is ONE_TO_ONE_NAT.
@@ -290,10 +279,7 @@ options:
                         required: false
                     network:
                         description:
-                            - Specifies the title of an existing gcompute_network.  When creating an instance,
-                              if neither the network nor the subnetwork is specified, the default network global/networks/default
-                              is used; if the network is not specified but the subnetwork is specified, the network
-                              is inferred.
+                            - A reference to Network resource.
                         required: false
                     network_ip:
                         description:
@@ -302,10 +288,7 @@ options:
                         required: false
                     subnetwork:
                         description:
-                            - Reference to a gcompute_subnetwork resource.
-                            - If the network resource is in legacy mode, do not provide this property.  If the
-                              network is in auto subnet mode, providing the subnetwork is optional. If the network
-                              is in custom subnet mode, then this field should be specified.
+                            - A reference to Subnetwork resource.
                         required: false
             scheduling:
                 description:
@@ -343,6 +326,7 @@ options:
                         description:
                             - Email address of the service account.
                         required: false
+                        type: bool
                     scopes:
                         description:
                             - The list of scopes to be made available for this service account.
@@ -373,42 +357,46 @@ extends_documentation_fragment: gcp
 EXAMPLES = '''
 - name: create a network
   gcp_compute_network:
-      name: "network-instancetemplate"
+      name: 'network-instancetemplate'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: network
-
 - name: create a address
   gcp_compute_address:
-      name: "address-instancetemplate"
-      region: us-west1
+      name: 'address-instancetemplate'
+      region: 'us-west1'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: address
-
 - name: create a instance template
   gcp_compute_instance_template:
-      name: "test_object"
+      name: testObject
       properties:
         disks:
-        - auto_delete: true
-          boot: true
-          initialize_params:
-            source_image: projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts
+          - auto_delete: true
+            boot: true
+            initialize_params:
+              source_image: 'projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts'
         machine_type: n1-standard-1
         network_interfaces:
-        - network: "{{ network }}"
-          access_configs:
-          - name: test-config
-            type: ONE_TO_ONE_NAT
-            nat_ip: "{{ address }}"
-      project: "test_project"
-      auth_kind: "service_account"
-      service_account_file: "/tmp/auth.pem"
+          - network: "{{ network }}"
+            access_configs:
+              - name: 'test-config'
+                type: 'ONE_TO_ONE_NAT'
+                nat_ip: "{{ address }}"
+      project: testProject
+      auth_kind: service_account
+      service_account_file: /tmp/auth.pem
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
 '''
 
@@ -535,9 +523,7 @@ RETURN = '''
                                 type: int
                             disk_type:
                                 description:
-                                    - Reference to a gcompute_disk_type resource.
-                                    - Specifies the disk type to use to create the instance.
-                                    - If not specified, the default is pd-standard.
+                                    - A reference to DiskType resource.
                                 returned: success
                                 type: str
                             source_image:
@@ -585,11 +571,7 @@ RETURN = '''
                         type: str
                     source:
                         description:
-                            - Reference to a gcompute_disk resource. When creating a new instance, one of initializeParams.sourceImage
-                              or disks.source is required.
-                            - If desired, you can also attach existing non-root persistent disks using this property.
-                              This field is only applicable for persistent disks.
-                            - Note that for InstanceTemplate, specify the disk name, not the URL for the disk.
+                            - A reference to Disk resource.
                         returned: success
                         type: dict
                     type:
@@ -600,7 +582,7 @@ RETURN = '''
                         type: str
             machine_type:
                 description:
-                    - Reference to a gcompute_machine_type resource.
+                    - A reference to MachineType resource.
                 returned: success
                 type: str
             metadata:
@@ -650,12 +632,7 @@ RETURN = '''
                                 type: str
                             nat_ip:
                                 description:
-                                    - Specifies the title of a gcompute_address.
-                                    - An external IP address associated with this instance.
-                                    - Specify an unused static external IP address available to the project or leave this
-                                      field undefined to use an IP from a shared ephemeral IP address pool. If you specify
-                                      a static external IP address, it must live in the same region as the zone of the
-                                      instance.
+                                    - A reference to Address resource.
                                 returned: success
                                 type: dict
                             type:
@@ -694,10 +671,7 @@ RETURN = '''
                         type: str
                     network:
                         description:
-                            - Specifies the title of an existing gcompute_network.  When creating an instance,
-                              if neither the network nor the subnetwork is specified, the default network global/networks/default
-                              is used; if the network is not specified but the subnetwork is specified, the network
-                              is inferred.
+                            - A reference to Network resource.
                         returned: success
                         type: dict
                     network_ip:
@@ -708,10 +682,7 @@ RETURN = '''
                         type: str
                     subnetwork:
                         description:
-                            - Reference to a gcompute_subnetwork resource.
-                            - If the network resource is in legacy mode, do not provide this property.  If the
-                              network is in auto subnet mode, providing the subnetwork is optional. If the network
-                              is in custom subnet mode, then this field should be specified.
+                            - A reference to Subnetwork resource.
                         returned: success
                         type: dict
             scheduling:
@@ -753,7 +724,7 @@ RETURN = '''
                         description:
                             - Email address of the service account.
                         returned: success
-                        type: str
+                        type: bool
                     scopes:
                         description:
                             - The list of scopes to be made available for this service account.
@@ -843,7 +814,7 @@ def main():
                 network_interfaces=dict(type='list', elements='dict', options=dict(
                     access_configs=dict(type='list', elements='dict', options=dict(
                         name=dict(required=True, type='str'),
-                        nat_ip=dict(type='dict'),
+                        nat_ip=dict(required=True, type='dict'),
                         type=dict(required=True, type='str', choices=['ONE_TO_ONE_NAT'])
                     )),
                     alias_ip_ranges=dict(type='list', elements='dict', options=dict(
@@ -861,7 +832,7 @@ def main():
                     preemptible=dict(type='bool')
                 )),
                 service_accounts=dict(type='list', elements='dict', options=dict(
-                    email=dict(type='str'),
+                    email=dict(type='bool'),
                     scopes=dict(type='list', elements='str')
                 )),
                 tags=dict(type='dict', options=dict(
@@ -872,9 +843,6 @@ def main():
         )
     )
 
-    if not module.params['scopes']:
-        module.params['scopes'] = ['https://www.googleapis.com/auth/compute']
-
     state = module.params['state']
     kind = 'compute#instanceTemplate'
 
@@ -884,10 +852,10 @@ def main():
     if fetch:
         if state == 'present':
             if is_different(module, fetch):
-                fetch = update(module, self_link(module), kind)
+                fetch = update(module, self_link(module), kind, fetch)
                 changed = True
         else:
-            delete(module, self_link(module), kind)
+            delete(module, self_link(module), kind, fetch)
             fetch = {}
             changed = True
     else:
@@ -907,12 +875,12 @@ def create(module, link, kind):
     return wait_for_operation(module, auth.post(link, resource_to_request(module)))
 
 
-def update(module, link, kind):
+def update(module, link, kind, fetch):
     auth = GcpSession(module, 'compute')
     return wait_for_operation(module, auth.put(link, resource_to_request(module)))
 
 
-def delete(module, link, kind):
+def delete(module, link, kind, fetch):
     auth = GcpSession(module, 'compute')
     return wait_for_operation(module, auth.delete(link))
 
@@ -922,7 +890,7 @@ def resource_to_request(module):
         u'kind': 'compute#instanceTemplate',
         u'description': module.params.get('description'),
         u'name': module.params.get('name'),
-        u'properties': InstanceTemplateProperties(module.params.get('properties', {}), module).to_request()
+        u'properties': InstancTemplatPropert(module.params.get('properties', {}), module).to_request()
     }
     request = encode_request(request, module)
     return_vals = {}
@@ -998,7 +966,7 @@ def response_to_hash(module, response):
         u'description': response.get(u'description'),
         u'id': response.get(u'id'),
         u'name': response.get(u'name'),
-        u'properties': InstanceTemplateProperties(response.get(u'properties', {}), module).from_response()
+        u'properties': InstancTemplatPropert(response.get(u'properties', {}), module).from_response()
     }
 
 
@@ -1023,7 +991,7 @@ def async_op_url(module, extra_data=None):
 def wait_for_operation(module, response):
     op_result = return_if_object(module, response, 'compute#operation')
     if op_result is None:
-        return {}
+        return None
     status = navigate_hash(op_result, ['status'])
     wait_done = wait_for_completion(status, op_result, module)
     return fetch_resource(module, navigate_hash(wait_done, ['targetLink']), 'compute#instanceTemplate')
@@ -1080,10 +1048,7 @@ def metadata_encoder(metadata):
     metadata_new = []
     for key in metadata:
         value = metadata[key]
-        metadata_new.append({
-            "key": key,
-            "value": value
-        })
+        metadata_new.append({key: value})
     return {
         'items': metadata_new
     }
@@ -1095,11 +1060,11 @@ def metadata_decoder(metadata):
     if 'items' in metadata:
         metadata_items = metadata['items']
         for item in metadata_items:
-            items[item['key']] = item['value']
+            items[item.keys()[0]] = item[item.keys()[0]]
     return items
 
 
-class InstanceTemplateProperties(object):
+class InstancTemplatPropert(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1111,32 +1076,32 @@ class InstanceTemplateProperties(object):
         return remove_nones_from_dict({
             u'canIpForward': self.request.get('can_ip_forward'),
             u'description': self.request.get('description'),
-            u'disks': InstanceTemplateDisksArray(self.request.get('disks', []), self.module).to_request(),
+            u'disks': InstancTemplatDisksArray(self.request.get('disks', []), self.module).to_request(),
             u'machineType': self.request.get('machine_type'),
             u'metadata': self.request.get('metadata'),
-            u'guestAccelerators': InstanceTemplateGuestAcceleratorsArray(self.request.get('guest_accelerators', []), self.module).to_request(),
-            u'networkInterfaces': InstanceTemplateNetworkInterfacesArray(self.request.get('network_interfaces', []), self.module).to_request(),
-            u'scheduling': InstanceTemplateScheduling(self.request.get('scheduling', {}), self.module).to_request(),
-            u'serviceAccounts': InstanceTemplateServiceAccountsArray(self.request.get('service_accounts', []), self.module).to_request(),
-            u'tags': InstanceTemplateTags(self.request.get('tags', {}), self.module).to_request()
+            u'guestAccelerators': InstaTemplGuestAccelArray(self.request.get('guest_accelerators', []), self.module).to_request(),
+            u'networkInterfaces': InstaTemplNetwoInterArray(self.request.get('network_interfaces', []), self.module).to_request(),
+            u'scheduling': InstancTemplatSchedul(self.request.get('scheduling', {}), self.module).to_request(),
+            u'serviceAccounts': InstaTemplServiAccouArray(self.request.get('service_accounts', []), self.module).to_request(),
+            u'tags': InstancTemplatTags(self.request.get('tags', {}), self.module).to_request()
         })
 
     def from_response(self):
         return remove_nones_from_dict({
             u'canIpForward': self.request.get(u'canIpForward'),
             u'description': self.request.get(u'description'),
-            u'disks': InstanceTemplateDisksArray(self.request.get(u'disks', []), self.module).from_response(),
+            u'disks': InstancTemplatDisksArray(self.request.get(u'disks', []), self.module).from_response(),
             u'machineType': self.request.get(u'machineType'),
             u'metadata': self.request.get(u'metadata'),
-            u'guestAccelerators': InstanceTemplateGuestAcceleratorsArray(self.request.get(u'guestAccelerators', []), self.module).from_response(),
-            u'networkInterfaces': InstanceTemplateNetworkInterfacesArray(self.request.get(u'networkInterfaces', []), self.module).from_response(),
-            u'scheduling': InstanceTemplateScheduling(self.request.get(u'scheduling', {}), self.module).from_response(),
-            u'serviceAccounts': InstanceTemplateServiceAccountsArray(self.request.get(u'serviceAccounts', []), self.module).from_response(),
-            u'tags': InstanceTemplateTags(self.request.get(u'tags', {}), self.module).from_response()
+            u'guestAccelerators': InstaTemplGuestAccelArray(self.request.get(u'guestAccelerators', []), self.module).from_response(),
+            u'networkInterfaces': InstaTemplNetwoInterArray(self.request.get(u'networkInterfaces', []), self.module).from_response(),
+            u'scheduling': InstancTemplatSchedul(self.request.get(u'scheduling', {}), self.module).from_response(),
+            u'serviceAccounts': InstaTemplServiAccouArray(self.request.get(u'serviceAccounts', []), self.module).from_response(),
+            u'tags': InstancTemplatTags(self.request.get(u'tags', {}), self.module).from_response()
         })
 
 
-class InstanceTemplateDisksArray(object):
+class InstancTemplatDisksArray(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1161,9 +1126,9 @@ class InstanceTemplateDisksArray(object):
             u'autoDelete': item.get('auto_delete'),
             u'boot': item.get('boot'),
             u'deviceName': item.get('device_name'),
-            u'diskEncryptionKey': InstanceTemplateDiskEncryptionKey(item.get('disk_encryption_key', {}), self.module).to_request(),
+            u'diskEncryptionKey': InstTempDiskEncrKey(item.get('disk_encryption_key', {}), self.module).to_request(),
             u'index': item.get('index'),
-            u'initializeParams': InstanceTemplateInitializeParams(item.get('initialize_params', {}), self.module).to_request(),
+            u'initializeParams': InstaTemplInitiParam(item.get('initialize_params', {}), self.module).to_request(),
             u'interface': item.get('interface'),
             u'mode': item.get('mode'),
             u'source': replace_resource_dict(item.get(u'source', {}), 'name'),
@@ -1175,9 +1140,9 @@ class InstanceTemplateDisksArray(object):
             u'autoDelete': item.get(u'autoDelete'),
             u'boot': item.get(u'boot'),
             u'deviceName': item.get(u'deviceName'),
-            u'diskEncryptionKey': InstanceTemplateDiskEncryptionKey(item.get(u'diskEncryptionKey', {}), self.module).from_response(),
+            u'diskEncryptionKey': InstTempDiskEncrKey(item.get(u'diskEncryptionKey', {}), self.module).from_response(),
             u'index': item.get(u'index'),
-            u'initializeParams': InstanceTemplateInitializeParams(self.module.params.get('initialize_params', {}), self.module).to_request(),
+            u'initializeParams': InstaTemplInitiParam(self.module.params.get('initialize_params', {}), self.module).to_request(),
             u'interface': item.get(u'interface'),
             u'mode': item.get(u'mode'),
             u'source': item.get(u'source'),
@@ -1185,7 +1150,7 @@ class InstanceTemplateDisksArray(object):
         })
 
 
-class InstanceTemplateDiskEncryptionKey(object):
+class InstTempDiskEncrKey(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1208,7 +1173,7 @@ class InstanceTemplateDiskEncryptionKey(object):
         })
 
 
-class InstanceTemplateInitializeParams(object):
+class InstaTemplInitiParam(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1222,7 +1187,7 @@ class InstanceTemplateInitializeParams(object):
             u'diskSizeGb': self.request.get('disk_size_gb'),
             u'diskType': disk_type_selflink(self.request.get('disk_type'), self.module.params),
             u'sourceImage': self.request.get('source_image'),
-            u'sourceImageEncryptionKey': InstanceTemplateSourceImageEncryptionKey(self.request.get('source_image_encryption_key', {}), self.module).to_request()
+            u'sourceImageEncryptionKey': InsTemSouImaEncKey(self.request.get('source_image_encryption_key', {}), self.module).to_request()
         })
 
     def from_response(self):
@@ -1231,12 +1196,11 @@ class InstanceTemplateInitializeParams(object):
             u'diskSizeGb': self.request.get(u'diskSizeGb'),
             u'diskType': self.request.get(u'diskType'),
             u'sourceImage': self.request.get(u'sourceImage'),
-            u'sourceImageEncryptionKey':
-                InstanceTemplateSourceImageEncryptionKey(self.request.get(u'sourceImageEncryptionKey', {}), self.module).from_response()
+            u'sourceImageEncryptionKey': InsTemSouImaEncKey(self.request.get(u'sourceImageEncryptionKey', {}), self.module).from_response()
         })
 
 
-class InstanceTemplateSourceImageEncryptionKey(object):
+class InsTemSouImaEncKey(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1257,7 +1221,7 @@ class InstanceTemplateSourceImageEncryptionKey(object):
         })
 
 
-class InstanceTemplateGuestAcceleratorsArray(object):
+class InstaTemplGuestAccelArray(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1290,7 +1254,7 @@ class InstanceTemplateGuestAcceleratorsArray(object):
         })
 
 
-class InstanceTemplateNetworkInterfacesArray(object):
+class InstaTemplNetwoInterArray(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1312,8 +1276,8 @@ class InstanceTemplateNetworkInterfacesArray(object):
 
     def _request_for_item(self, item):
         return remove_nones_from_dict({
-            u'accessConfigs': InstanceTemplateAccessConfigsArray(item.get('access_configs', []), self.module).to_request(),
-            u'aliasIpRanges': InstanceTemplateAliasIpRangesArray(item.get('alias_ip_ranges', []), self.module).to_request(),
+            u'accessConfigs': InstaTemplAccesConfiArray(item.get('access_configs', []), self.module).to_request(),
+            u'aliasIpRanges': InstTempAliaIpRangArray(item.get('alias_ip_ranges', []), self.module).to_request(),
             u'name': item.get('name'),
             u'network': replace_resource_dict(item.get(u'network', {}), 'selfLink'),
             u'networkIP': item.get('network_ip'),
@@ -1322,8 +1286,8 @@ class InstanceTemplateNetworkInterfacesArray(object):
 
     def _response_from_item(self, item):
         return remove_nones_from_dict({
-            u'accessConfigs': InstanceTemplateAccessConfigsArray(item.get(u'accessConfigs', []), self.module).from_response(),
-            u'aliasIpRanges': InstanceTemplateAliasIpRangesArray(item.get(u'aliasIpRanges', []), self.module).from_response(),
+            u'accessConfigs': InstaTemplAccesConfiArray(item.get(u'accessConfigs', []), self.module).from_response(),
+            u'aliasIpRanges': InstTempAliaIpRangArray(item.get(u'aliasIpRanges', []), self.module).from_response(),
             u'name': item.get(u'name'),
             u'network': item.get(u'network'),
             u'networkIP': item.get(u'networkIP'),
@@ -1331,7 +1295,7 @@ class InstanceTemplateNetworkInterfacesArray(object):
         })
 
 
-class InstanceTemplateAccessConfigsArray(object):
+class InstaTemplAccesConfiArray(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1366,7 +1330,7 @@ class InstanceTemplateAccessConfigsArray(object):
         })
 
 
-class InstanceTemplateAliasIpRangesArray(object):
+class InstTempAliaIpRangArray(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1399,7 +1363,7 @@ class InstanceTemplateAliasIpRangesArray(object):
         })
 
 
-class InstanceTemplateScheduling(object):
+class InstancTemplatSchedul(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1422,7 +1386,7 @@ class InstanceTemplateScheduling(object):
         })
 
 
-class InstanceTemplateServiceAccountsArray(object):
+class InstaTemplServiAccouArray(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -1455,7 +1419,7 @@ class InstanceTemplateServiceAccountsArray(object):
         })
 
 
-class InstanceTemplateTags(object):
+class InstancTemplatTags(object):
     def __init__(self, request, module):
         self.module = module
         if request:

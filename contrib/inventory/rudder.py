@@ -59,7 +59,10 @@ from time import time
 from ansible.module_utils.six.moves import configparser
 from ansible.module_utils.six.moves.urllib.parse import urlparse
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 
 class RudderInventory(object):

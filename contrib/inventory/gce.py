@@ -101,7 +101,10 @@ else:
 import logging
 logging.getLogger('libcloud.common.google').addHandler(logging.NullHandler())
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 try:
     from libcloud.compute.types import Provider

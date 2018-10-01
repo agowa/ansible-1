@@ -2,5 +2,5 @@ mysql_service: 'mariadb'
 
 mysql_packages:
     - mariadb-server
-    - python-PyMySQL
+    - MySQL-python
     - bzip2

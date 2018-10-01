@@ -394,12 +394,11 @@ This makes a dynamic group of hosts matching certain criteria, even if that grou
 
    ---
 
-    - name: talk to all hosts just so we can learn about them
-      hosts: all
+    # talk to all hosts just so we can learn about them 
+    - hosts: all
       tasks:
-        - name: Classify hosts depending on their OS distribution
-          group_by:
-            key: os_{{ ansible_facts['distribution'] }}
+        - group_by: 
+            key: os_{{ ansible_distribution }}
 
     # now just on the CentOS hosts...
 
@@ -427,8 +426,7 @@ Alternatively, if only variables are needed::
 
     - hosts: all
       tasks:
-        - name: Set OS distribution dependant variables
-          include_vars: "os_{{ ansible_facts['distribution'] }}.yml"
+        - include_vars: "os_{{ ansible_distribution }}.yml"
         - debug:
             var: asdf
 

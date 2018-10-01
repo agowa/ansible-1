@@ -1,12 +1,17 @@
 """OpenNebula plugin for integration tests."""
 
+import os
+
 from lib.cloud import (
     CloudProvider,
     CloudEnvironment
 )
 
 from lib.util import (
+    find_executable,
+    ApplicationError,
     display,
+    is_shippable,
 )
 
 

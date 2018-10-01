@@ -75,7 +75,10 @@ import sys
 from time import time
 import traceback
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 from six import iteritems
 from six.moves.urllib.parse import urlencode

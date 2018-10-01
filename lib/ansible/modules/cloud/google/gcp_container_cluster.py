@@ -44,6 +44,7 @@ options:
     state:
         description:
             - Whether the given object should exist in GCP
+        required: true
         choices: ['present', 'absent']
         default: 'present'
     name:
@@ -90,9 +91,9 @@ options:
                     - The set of Google API scopes to be made available on all of the node VMs under the
                       "default" service account.
                     - 'The following scopes are recommended, but not required, and by default are not
-                      included:  U(https://www.googleapis.com/auth/compute) is required for mounting persistent
+                      included:  https://www.googleapis.com/auth/compute is required for mounting persistent
                       storage on your nodes.'
-                    - U(https://www.googleapis.com/auth/devstorage.read_only) is required for communicating
+                    - https://www.googleapis.com/auth/devstorage.read_only is required for communicating
                       with gcr.io (the Google Container Registry).
                     - If unspecified, no scopes are added, unless Cloud Logging or Cloud Monitoring are
                       enabled, in which case their required scopes will be added.
@@ -123,20 +124,22 @@ options:
                 required: false
             labels:
                 description:
-                    - 'The map of Kubernetes labels (key/value pairs) to be applied to each node.
-                      These will added in addition to any default label(s) that Kubernetes may apply to
-                      the node. In case of conflict in label keys, the applied set may differ depending
-                      on the Kubernetes version -- it''s best to assume the behavior is undefined and
-                      conflicts should be avoided. For more information, including usage and the valid
-                      values, see: U(http://kubernetes.io/v1.1/docs/user-guide/labels.html) An object
-                      containing a list of "key": value pairs.'
+                    - 'The map of Kubernetes labels (key/value pairs) to be
+                      applied to each node. These will added in addition to any
+                      default label(s) that Kubernetes may apply to the node. In
+                      case of conflict in label keys, the applied set may differ
+                      depending on the Kubernetes version -- it''s best to assume
+                      the behavior is undefined and conflicts should be avoided. For
+                      more information, including usage and the valid values, see:
+                      http://kubernetes.io/v1.1/docs/user-guide/labels.html An
+                      object containing a list of "key": value pairs.'
                     - 'Example: { "name": "wrench", "mass": "1.3kg", "count": "3" }.'
                 required: false
             local_ssd_count:
                 description:
                     - The number of local SSD disks to be attached to the node.
                     - 'The limit for this value is dependant upon the maximum number of disks available
-                      on a machine per zone. See:  U(https://cloud.google.com/compute/docs/disks/local-ssd#local_ssd_limits)  for
+                      on a machine per zone. See:  https://cloud.google.com/compute/docs/disks/   local-ssd#local_ssd_limits  for
                       more information.'
                 required: false
             tags:
@@ -147,7 +150,7 @@ options:
                 required: false
             preemptible:
                 description:
-                    - 'Whether the nodes are created as preemptible VM instances. See: U(https://cloud.google.com/compute/docs/instances/preemptible)
+                    - 'Whether the nodes are created as preemptible VM instances. See: https://cloud.google.com/compute/docs/instances/preemptible
                       for more inforamtion about preemptible VM instances.'
                 required: false
                 type: bool
@@ -258,18 +261,20 @@ extends_documentation_fragment: gcp
 EXAMPLES = '''
 - name: create a cluster
   gcp_container_cluster:
-      name: "test_object"
+      name: testObject
       initial_node_count: 2
       master_auth:
-        username: cluster_admin
-        password: my-secret-password
+        username: "cluster_admin"
+        password: "my-secret-password"
       node_config:
-        machine_type: n1-standard-4
+        machine_type: "n1-standard-4"
         disk_size_gb: 500
-      zone: us-central1-a
-      project: "test_project"
-      auth_kind: "service_account"
-      service_account_file: "/tmp/auth.pem"
+      zone: 'us-central1-a'
+      project: testProject
+      auth_kind: service_account
+      service_account_file: /tmp/auth.pem
+      scopes:
+        - https://www.googleapis.com/auth/cloud-platform
       state: present
 '''
 
@@ -324,9 +329,9 @@ RETURN = '''
                     - The set of Google API scopes to be made available on all of the node VMs under the
                       "default" service account.
                     - 'The following scopes are recommended, but not required, and by default are not
-                      included:  U(https://www.googleapis.com/auth/compute) is required for mounting persistent
+                      included:  https://www.googleapis.com/auth/compute is required for mounting persistent
                       storage on your nodes.'
-                    - U(https://www.googleapis.com/auth/devstorage.read_only) is required for communicating
+                    - https://www.googleapis.com/auth/devstorage.read_only is required for communicating
                       with gcr.io (the Google Container Registry).
                     - If unspecified, no scopes are added, unless Cloud Logging or Cloud Monitoring are
                       enabled, in which case their required scopes will be added.
@@ -361,13 +366,15 @@ RETURN = '''
                 type: str
             labels:
                 description:
-                    - 'The map of Kubernetes labels (key/value pairs) to be applied to each node.
-                      These will added in addition to any default label(s) that Kubernetes may apply to
-                      the node. In case of conflict in label keys, the applied set may differ depending
-                      on the Kubernetes version -- it''s best to assume the behavior is undefined and
-                      conflicts should be avoided. For more information, including usage and the valid
-                      values, see: U(http://kubernetes.io/v1.1/docs/user-guide/labels.html) An object
-                      containing a list of "key": value pairs.'
+                    - 'The map of Kubernetes labels (key/value pairs) to be
+                      applied to each node. These will added in addition to any
+                      default label(s) that Kubernetes may apply to the node. In
+                      case of conflict in label keys, the applied set may differ
+                      depending on the Kubernetes version -- it''s best to assume
+                      the behavior is undefined and conflicts should be avoided. For
+                      more information, including usage and the valid values, see:
+                      http://kubernetes.io/v1.1/docs/user-guide/labels.html An
+                      object containing a list of "key": value pairs.'
                     - 'Example: { "name": "wrench", "mass": "1.3kg", "count": "3" }.'
                 returned: success
                 type: dict
@@ -375,7 +382,7 @@ RETURN = '''
                 description:
                     - The number of local SSD disks to be attached to the node.
                     - 'The limit for this value is dependant upon the maximum number of disks available
-                      on a machine per zone. See:  U(https://cloud.google.com/compute/docs/disks/local-ssd#local_ssd_limits)  for
+                      on a machine per zone. See:  https://cloud.google.com/compute/docs/disks/   local-ssd#local_ssd_limits  for
                       more information.'
                 returned: success
                 type: int
@@ -388,7 +395,7 @@ RETURN = '''
                 type: list
             preemptible:
                 description:
-                    - 'Whether the nodes are created as preemptible VM instances. See: U(https://cloud.google.com/compute/docs/instances/preemptible)
+                    - 'Whether the nodes are created as preemptible VM instances. See: https://cloud.google.com/compute/docs/instances/preemptible
                       for more inforamtion about preemptible VM instances.'
                 returned: success
                 type: bool
@@ -621,9 +628,6 @@ def main():
         )
     )
 
-    if not module.params['scopes']:
-        module.params['scopes'] = ['https://www.googleapis.com/auth/cloud-platform']
-
     state = module.params['state']
 
     fetch = fetch_resource(module, self_link(module))
@@ -632,10 +636,10 @@ def main():
     if fetch:
         if state == 'present':
             if is_different(module, fetch):
-                fetch = update(module, self_link(module))
+                fetch = update(module, self_link(module), fetch)
                 changed = True
         else:
-            delete(module, self_link(module))
+            delete(module, self_link(module), fetch)
             fetch = {}
             changed = True
     else:
@@ -655,12 +659,12 @@ def create(module, link):
     return wait_for_operation(module, auth.post(link, resource_to_request(module)))
 
 
-def update(module, link):
+def update(module, link, fetch):
     auth = GcpSession(module, 'container')
     return wait_for_operation(module, auth.put(link, resource_to_request(module)))
 
 
-def delete(module, link):
+def delete(module, link, fetch):
     auth = GcpSession(module, 'container')
     return wait_for_operation(module, auth.delete(link))
 
@@ -781,7 +785,7 @@ def async_op_url(module, extra_data=None):
 def wait_for_operation(module, response):
     op_result = return_if_object(module, response)
     if op_result is None:
-        return {}
+        return None
     status = navigate_hash(op_result, ['status'])
     wait_done = wait_for_completion(status, op_result, module)
     return fetch_resource(module, navigate_hash(wait_done, ['targetLink']))
@@ -896,18 +900,18 @@ class ClusterAddonsConfig(object):
 
     def to_request(self):
         return remove_nones_from_dict({
-            u'httpLoadBalancing': ClusterHttpLoadBalancing(self.request.get('http_load_balancing', {}), self.module).to_request(),
-            u'horizontalPodAutoscaling': ClusterHorizontalPodAutoscaling(self.request.get('horizontal_pod_autoscaling', {}), self.module).to_request()
+            u'httpLoadBalancing': ClustHttpLoadBalan(self.request.get('http_load_balancing', {}), self.module).to_request(),
+            u'horizontalPodAutoscaling': ClustHorizPodAutos(self.request.get('horizontal_pod_autoscaling', {}), self.module).to_request()
         })
 
     def from_response(self):
         return remove_nones_from_dict({
-            u'httpLoadBalancing': ClusterHttpLoadBalancing(self.request.get(u'httpLoadBalancing', {}), self.module).from_response(),
-            u'horizontalPodAutoscaling': ClusterHorizontalPodAutoscaling(self.request.get(u'horizontalPodAutoscaling', {}), self.module).from_response()
+            u'httpLoadBalancing': ClustHttpLoadBalan(self.request.get(u'httpLoadBalancing', {}), self.module).from_response(),
+            u'horizontalPodAutoscaling': ClustHorizPodAutos(self.request.get(u'horizontalPodAutoscaling', {}), self.module).from_response()
         })
 
 
-class ClusterHttpLoadBalancing(object):
+class ClustHttpLoadBalan(object):
     def __init__(self, request, module):
         self.module = module
         if request:
@@ -926,7 +930,7 @@ class ClusterHttpLoadBalancing(object):
         })
 
 
-class ClusterHorizontalPodAutoscaling(object):
+class ClustHorizPodAutos(object):
     def __init__(self, request, module):
         self.module = module
         if request:

@@ -29,7 +29,10 @@ import subprocess
 import re
 import string
 from optparse import OptionParser
-import json
+try:
+    import json
+except:
+    import simplejson as json
 
 # Options
 # ------------------------------

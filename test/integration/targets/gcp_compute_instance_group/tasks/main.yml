@@ -15,36 +15,42 @@
 # Pre-test setup
 - name: create a network
   gcp_compute_network:
-      name: "network-instancegroup"
+      name: 'network-instancegroup'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: network
 - name: delete a instance group
   gcp_compute_instance_group:
       name: "{{ resource_name }}"
       named_ports:
-      - name: ansible
-        port: 1234
+        - name: ansible
+          port: 1234
       network: "{{ network }}"
-      zone: us-central1-a
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: absent
 #----------------------------------------------------------
 - name: create a instance group
   gcp_compute_instance_group:
       name: "{{ resource_name }}"
       named_ports:
-      - name: ansible
-        port: 1234
+        - name: ansible
+          port: 1234
       network: "{{ network }}"
-      zone: us-central1-a
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: result
 - name: assert changed is true
@@ -53,32 +59,27 @@
       - result.changed == true
       - "result.kind == 'compute#instanceGroup'"
 - name: verify that instance_group was created
-  gcp_compute_instance_group_facts:
-      filters:
-         - name = {{ resource_name }}
-      zone: us-central1-a
-      project: "{{ gcp_project }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_cred_file }}"
-      scopes:
-        - https://www.googleapis.com/auth/compute
+  shell: |
+    gcloud compute instance-groups unmanaged describe  --project="{{ gcp_project }}"  --zone="us-central1-a"  "{{ resource_name }}"
   register: results
 - name: verify that command succeeded
   assert:
     that:
-      - results['items'] | length == 1
+      - results.rc == 0
 # ----------------------------------------------------------------------------
 - name: create a instance group that already exists
   gcp_compute_instance_group:
       name: "{{ resource_name }}"
       named_ports:
-      - name: ansible
-        port: 1234
+        - name: ansible
+          port: 1234
       network: "{{ network }}"
-      zone: us-central1-a
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: result
 - name: assert changed is false
@@ -91,13 +92,15 @@
   gcp_compute_instance_group:
       name: "{{ resource_name }}"
       named_ports:
-      - name: ansible
-        port: 1234
+        - name: ansible
+          port: 1234
       network: "{{ network }}"
-      zone: us-central1-a
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: absent
   register: result
 - name: assert changed is true
@@ -106,32 +109,29 @@
       - result.changed == true
       - result.has_key('kind') == False
 - name: verify that instance_group was deleted
-  gcp_compute_instance_group_facts:
-      filters:
-         - name = {{ resource_name }}
-      zone: us-central1-a
-      project: "{{ gcp_project }}"
-      auth_kind: "{{ gcp_cred_kind }}"
-      service_account_file: "{{ gcp_cred_file }}"
-      scopes:
-        - https://www.googleapis.com/auth/compute
+  shell: |
+    gcloud compute instance-groups unmanaged describe  --project="{{ gcp_project }}"  --zone="us-central1-a"  "{{ resource_name }}"
   register: results
+  failed_when: results.rc == 0
 - name: verify that command succeeded
   assert:
     that:
-      - results['items'] | length == 0
+      - results.rc == 1
+      - "\"'projects/{{ gcp_project }}/zones/us-central1-a/instanceGroups/{{ resource_name }}' was not found\" in results.stderr"
 # ----------------------------------------------------------------------------
 - name: delete a instance group that does not exist
   gcp_compute_instance_group:
       name: "{{ resource_name }}"
       named_ports:
-      - name: ansible
-        port: 1234
+        - name: ansible
+          port: 1234
       network: "{{ network }}"
-      zone: us-central1-a
+      zone: 'us-central1-a'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: absent
   register: result
 - name: assert changed is false
@@ -143,9 +143,11 @@
 # Post-test teardown
 - name: delete a network
   gcp_compute_network:
-      name: "network-instancegroup"
+      name: 'network-instancegroup'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: absent
   register: network

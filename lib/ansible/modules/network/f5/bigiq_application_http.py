@@ -119,7 +119,7 @@ EXAMPLES = r'''
         port: 8080
     inbound_virtual:
       name: foo
-      address: 2.2.2.2
+      destination: 2.2.2.2
       netmask: 255.255.255.255
       port: 443
     provider:
@@ -177,6 +177,7 @@ servers:
 import time
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import env_fallback
 
 try:
     from library.module_utils.network.f5.bigiq import F5RestClient
@@ -185,7 +186,6 @@ try:
     from library.module_utils.network.f5.common import f5_argument_spec
     from library.module_utils.network.f5.common import exit_json
     from library.module_utils.network.f5.common import fail_json
-    from library.module_utils.network.f5.ipaddress import is_valid_ip
 except ImportError:
     from ansible.module_utils.network.f5.bigiq import F5RestClient
     from ansible.module_utils.network.f5.common import F5ModuleError
@@ -193,7 +193,12 @@ except ImportError:
     from ansible.module_utils.network.f5.common import f5_argument_spec
     from ansible.module_utils.network.f5.common import exit_json
     from ansible.module_utils.network.f5.common import fail_json
-    from ansible.module_utils.network.f5.ipaddress import is_valid_ip
+
+try:
+    import netaddr
+    HAS_NETADDR = True
+except ImportError:
+    HAS_NETADDR = False
 
 
 class Parameters(AnsibleF5Parameters):
@@ -270,9 +275,11 @@ class ModuleParameters(Parameters):
 
     @property
     def default_device_reference(self):
-        if is_valid_ip(self.service_environment):
+        try:
+            # An IP address was specified
+            netaddr.IPAddress(self.service_environment)
             filter = "address+eq+'{0}'".format(self.service_environment)
-        else:
+        except netaddr.core.AddrFormatError:
             # Assume a hostname was specified
             filter = "hostname+eq+'{0}'".format(self.service_environment)
 
@@ -356,7 +363,7 @@ class UsableChanges(Changes):
                     name='virtual',
                     destinationAddress=self.inbound_virtual['address'],
                     mask=self.inbound_virtual['netmask'],
-                    destinationPort=self.inbound_virtual.get('port', 80)
+                    destinationPort=self.inbound_virtual['port']
                 ),
                 subcollectionResources=self.profiles
             )
@@ -399,7 +406,7 @@ class UsableChanges(Changes):
         for x in self.servers:
             member = dict(
                 parameters=dict(
-                    port=x.get('port', 80),
+                    port=x['port'],
                     nodeReference=dict(
                         link='#/resources/ltm:node:9e76a6323321/{0}'.format(x['address']),
                         fullPath='# {0}'.format(x['address'])
@@ -724,9 +731,11 @@ def main():
         argument_spec=spec.argument_spec,
         supports_check_mode=spec.supports_check_mode
     )
+    if not HAS_NETADDR:
+        module.fail_json(msg="The python netaddr module is required")
 
     try:
-        client = F5RestClient(**module.params)
+        client = F5RestClient(module=module)
         mm = ModuleManager(module=module, client=client)
         results = mm.exec_module()
         exit_json(module, results, client)

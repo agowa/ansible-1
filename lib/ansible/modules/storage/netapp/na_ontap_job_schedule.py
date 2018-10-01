@@ -14,11 +14,12 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 DOCUMENTATION = '''
 module: na_ontap_job_schedule
-short_description: NetApp ONTAP Job Schedule
+short_description: Manage NetApp Ontap Job Schedule
 extends_documentation_fragment:
     - netapp.na_ontap
 version_added: '2.6'
-author: NetApp Ansible Team (ng-ansibleteam@netapp.com)
+author:
+- Archana Ganesan (garchana@netapp.com), Suhas Bangalore Shekar (bsuhas@netapp.com)
 description:
 - Create/Delete/Modify_minute job-schedules on ONTAP
 options:

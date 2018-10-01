@@ -50,7 +50,6 @@ options:
       - >
         Should this configuration be in the running firewalld configuration or persist across reboots. As of Ansible version 2.3, permanent operations can
         operate on firewalld configs when it's not running (requires firewalld >= 3.0.9). (NOTE: If this is false, immediate is assumed true.)
-    type: bool
   immediate:
     description:
       - "Should this configuration be applied immediately, if set as permanent"
@@ -91,28 +90,28 @@ author: "Adam Miller (@maxamillion)"
 EXAMPLES = '''
 - firewalld:
     service: https
-    permanent: yes
+    permanent: true
     state: enabled
 
 - firewalld:
     port: 8081/tcp
-    permanent: yes
+    permanent: true
     state: disabled
 
 - firewalld:
     port: 161-162/udp
-    permanent: yes
+    permanent: true
     state: enabled
 
 - firewalld:
     zone: dmz
     service: http
-    permanent: yes
+    permanent: true
     state: enabled
 
 - firewalld:
     rich_rule: 'rule service name="ftp" audit limit value="1/m" accept'
-    permanent: yes
+    permanent: true
     state: enabled
 
 - firewalld:
@@ -123,26 +122,26 @@ EXAMPLES = '''
 - firewalld:
     zone: trusted
     interface: eth2
-    permanent: yes
+    permanent: true
     state: enabled
 
 - firewalld:
     masquerade: yes
     state: enabled
-    permanent: yes
+    permanent: true
     zone: dmz
 
 - firewalld:
     zone: custom
     state: present
-    permanent: yes
+    permanent: true
 
 - name: Redirect port 443 to 8443 with Rich Rule
   firewalld:
     rich_rule: rule family={{ item }} forward-port port=443 protocol=tcp to-port=8443
     zone:      public
-    permanent: yes
-    immediate: yes
+    permanent: true
+    immediate: true
     state:     enabled
   with_items:
     - ipv4
@@ -499,9 +498,7 @@ class ZoneTransaction(FirewallTransaction):
         self.module.fail_json(msg=self.tx_not_permanent_error_msg)
 
     def get_enabled_permanent(self):
-        zones = self.fw.config().listZones()
-        zone_names = [self.fw.config().getZone(z).get_property("name") for z in zones]
-        if self.zone in zone_names:
+        if self.zone in self.fw.config().getZoneNames():
             return True
         else:
             return False

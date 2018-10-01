@@ -49,7 +49,10 @@ except:
           file=sys.stderr)
     sys.exit(1)
 
-import json
+try:
+    import json
+except:
+    import simplejson as json
 
 
 class ZabbixInventory(object):

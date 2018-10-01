@@ -99,8 +99,6 @@ try:
     from library.module_utils.network.f5.common import cleanup_tokens
     from library.module_utils.network.f5.common import fq_name
     from library.module_utils.network.f5.common import f5_argument_spec
-    from library.module_utils.network.f5.ipaddress import is_valid_ip
-    from library.module_utils.compat.ipaddress import ip_network
     try:
         from library.module_utils.network.f5.common import iControlUnexpectedHTTPError
     except ImportError:
@@ -113,12 +111,16 @@ except ImportError:
     from ansible.module_utils.network.f5.common import cleanup_tokens
     from ansible.module_utils.network.f5.common import fq_name
     from ansible.module_utils.network.f5.common import f5_argument_spec
-    from ansible.module_utils.network.f5.ipaddress import is_valid_ip
-    from ansible.module_utils.compat.ipaddress import ip_network
     try:
         from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
     except ImportError:
         HAS_F5SDK = False
+
+try:
+    import netaddr
+    HAS_NETADDR = True
+except ImportError:
+    HAS_NETADDR = False
 
 
 class Parameters(AnsibleF5Parameters):
@@ -157,9 +159,9 @@ class ModuleParameters(Parameters):
         if self._values['network'] == 'default':
             return 'default'
         try:
-            addr = ip_network(u"{0}".format(str(self._values['network'])))
+            addr = netaddr.IPNetwork(self._values['network'])
             return str(addr)
-        except ValueError:
+        except netaddr.core.AddrFormatError:
             raise F5ModuleError(
                 "The 'network' must either be a network address (with CIDR) or the word 'default'."
             )
@@ -168,11 +170,12 @@ class ModuleParameters(Parameters):
     def gateway(self):
         if self._values['gateway'] is None:
             return None
-        if is_valid_ip(self._values['gateway']):
-            return self._values['gateway']
-        else:
+        try:
+            addr = netaddr.IPNetwork(self._values['gateway'])
+            return str(addr.ip)
+        except netaddr.core.AddrFormatError:
             raise F5ModuleError(
-                "The 'gateway' must an IP address."
+                "The 'gateway' must either be an IP address."
             )
 
 
@@ -399,6 +402,8 @@ def main():
     )
     if not HAS_F5SDK:
         module.fail_json(msg="The python f5-sdk module is required")
+    if not HAS_NETADDR:
+        module.fail_json(msg="The python netaddr module is required")
 
     try:
         client = F5Client(**module.params)

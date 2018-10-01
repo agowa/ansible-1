@@ -37,37 +37,16 @@
 
 - debug: var=vm1
 
-- name: Gather facts about virtual machine disks
+- name: create new VMs with non-existent network
   vmware_guest_disk_facts:
-    validate_certs: no
+    validate_certs: False
     hostname: "{{ vcsim }}"
     username: "{{ vcsim_instance['json']['username'] }}"
     password: "{{ vcsim_instance['json']['password'] }}"
     name: "{{ vm1 }}"
     datacenter: "{{ (vm1 | basename).split('_')[0] }}"
   register: disk_facts
-
-- debug:
-    msg: '{{ disk_facts }}'
-
-- name: assert that no changes were made
-  assert:
-    that:
-        - "not disk_facts.changed"
-
-- name: Gather facts about virtual machine disks in check mode
-  vmware_guest_disk_facts:
-    validate_certs: no
-    hostname: "{{ vcsim }}"
-    username: "{{ vcsim_instance['json']['username'] }}"
-    password: "{{ vcsim_instance['json']['password'] }}"
-    name: "{{ vm1 }}"
-    datacenter: "{{ (vm1 | basename).split('_')[0] }}"
-  register: disk_facts
-  check_mode: yes
-
-- debug:
-    msg: '{{ disk_facts }}'
+- debug: var=disk_facts
 
 - name: assert that no changes were made
   assert:

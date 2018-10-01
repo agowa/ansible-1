@@ -296,14 +296,6 @@ class NetworkConfig(object):
 
     def _diff_strict(self, other):
         updates = list()
-        # block extracted from other does not have all parents
-        # but the last one. In case of multiple parents we need
-        # to add additional parents.
-        if other and isinstance(other, list) and len(other) > 0:
-            start_other = other[0]
-            if start_other.parents:
-                for parent in start_other.parents:
-                    other.insert(0, ConfigLine(parent))
         for index, line in enumerate(self.items):
             try:
                 if str(line).strip() != str(other[index]).strip():
@@ -382,10 +374,6 @@ class NetworkConfig(object):
         # global config command
         if not parents:
             for line in lines:
-                # handle ignore lines
-                if ignore_line(line):
-                    continue
-
                 item = ConfigLine(line)
                 item.raw = line
                 if item not in self.items:
@@ -411,10 +399,6 @@ class NetworkConfig(object):
 
             # add child objects
             for line in lines:
-                # handle ignore lines
-                if ignore_line(line):
-                    continue
-
                 # check if child already exists
                 for child in ancestors[-1]._children:
                     if child.text == line:

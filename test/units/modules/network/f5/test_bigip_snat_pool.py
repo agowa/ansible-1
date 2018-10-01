@@ -94,7 +94,7 @@ class TestManager(unittest.TestCase):
             name='my-snat-pool',
             state='present',
             members=['10.10.10.10', '20.20.20.20'],
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))
@@ -121,7 +121,7 @@ class TestManager(unittest.TestCase):
             name='asdasd',
             state='present',
             members=['1.1.1.1', '2.2.2.2'],
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))
@@ -147,7 +147,7 @@ class TestManager(unittest.TestCase):
             name='asdasd',
             state='present',
             members=['30.30.30.30'],
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))

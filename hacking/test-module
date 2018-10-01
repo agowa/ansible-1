@@ -44,7 +44,10 @@ import ansible.constants as C
 from ansible.module_utils._text import to_native, to_text
 from ansible.template import Templar
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 
 def parse():

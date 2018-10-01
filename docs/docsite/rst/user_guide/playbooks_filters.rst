@@ -89,8 +89,8 @@ Jinja2 provides a useful 'default' filter that is often a better approach to fai
 In the above example, if the variable 'some_variable' is not defined, the value used will be 5, rather than an error
 being raised.
 
-If you want to use the default value when variables evaluate to false or an empty string you have to set the second parameter to
-``true``::
+If the variable evaluates to an empty string, the second parameter of the filter should be set to
+`true`::
 
     {{ lookup('env', 'MY_USER') | default('admin', true) }}
 
@@ -199,25 +199,6 @@ into::
       value: payment
     - key: Environment
       value: dev
-
-.. versionadded:: 2.8
-
-``dict2items`` accepts 2 keyword arguments, ``key_name`` and ``value_name`` that allow configuration of the names of the keys to use for the transformation::
-
-    {{ files | dict2items(key_name='file', value_name='path') }}
-
-Which turns::
-
-    files:
-      users: /etc/passwd
-      groups: /etc/group
-
-into::
-
-    - file: users
-      path: /etc/passwd
-    - file: groups
-      path: /etc/group
 
 items2dict filter
 `````````````````
@@ -802,18 +783,6 @@ An idempotent method to generate unique hashes per system is to use a salt that 
 Hash types available depend on the master system running ansible,
 'hash' depends on hashlib password_hash depends on passlib (https://passlib.readthedocs.io/en/stable/lib/passlib.hash.html).
 
-.. versionadded:: 2.7
-
-Some hash types allow providing a rounds parameter::
-
-    {{ 'secretpassword'|password_hash('sha256', 'mysecretsalt', rounds=10000) }}
-
-When`Passlib <https://passlib.readthedocs.io/en/stable/>`_ is installed
-`password_hash` supports any crypt scheme and parameter supported by 'Passlib'::
-
-    {{ 'secretpassword'|password_hash('sha256_crypt', 'mysecretsalt', rounds=5000) }}
-    {{ 'secretpassword'|password_hash('bcrypt', ident='2b', rounds=14) }}
-
 .. _combine_filter:
 
 Combining hashes/dictionaries
@@ -1031,7 +1000,7 @@ To search a string with a regex, use the "regex_search" filter::
 
     # will return empty if it cannot find a match
     {{ 'ansible' | regex_search('(foobar)') }}
-
+    
     # case insensitive search in multiline mode
     {{ 'foo\nBAR' | regex_search("^bar", multiline=True, ignorecase=True) }}
 
@@ -1055,7 +1024,7 @@ To replace text in a string with regex, use the "regex_replace" filter::
 
     # convert "localhost:80" to "localhost"
     {{ 'localhost:80' | regex_replace(':80') }}
-
+    
     # add "https://" prefix to each item in a list
     {{ hosts | map('regex_replace', '^(.*)$', 'https://\\1') | list }}
 
@@ -1080,10 +1049,6 @@ To add quotes for shell usage::
 To use one value on true and another on false (new in version 1.9)::
 
     {{ (name == "John") | ternary('Mr','Ms') }}
-
-To use one value on true, one value on false and a third value on null (new in version 2.8)::
-
-   {{ enabled | ternary('no shutdown', 'shutdown', omit) }}
 
 To concatenate a list into a string::
 
@@ -1184,25 +1149,6 @@ To get date object from string use the `to_datetime` filter, (new in version in 
     # get amount of days between two dates. This returns only number of days and discards remaining hours, minutes, and seconds
     {{ (("2016-08-14 20:00:12"|to_datetime) - ("2015-12-25"|to_datetime('%Y-%m-%d'))).days  }}
 
-.. versionadded:: 2.4
-
-To format a date using a string (like with the shell date command), use the "strftime" filter::
-
-    # Display year-month-day
-    {{ '%Y-%m-%d' | strftime }}
-
-    # Display hour:min:sec
-    {{ '%H:%M:%S' | strftime }}
-
-    # Use ansible_date_time.epoch fact
-    {{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}
-
-    # Use arbitrary epoch value
-    {{ '%Y-%m-%d' | strftime(0) }}          # => 1970-01-01
-    {{ '%Y-%m-%d' | strftime(1441357287) }} # => 2015-09-04
-
-.. note:: To get all string possibilities, check https://docs.python.org/2/library/time.html#time.strftime
-
 Combination Filters
 ````````````````````
 
@@ -1227,6 +1173,25 @@ Combinations always require a set size::
 
 
 Also see the :ref:`zip_filter`
+
+.. versionadded:: 2.4
+
+To format a date using a string (like with the shell date command), use the "strftime" filter::
+
+    # Display year-month-day
+    {{ '%Y-%m-%d' | strftime }}
+
+    # Display hour:min:sec
+    {{ '%H:%M:%S' | strftime }}
+
+    # Use ansible_date_time.epoch fact
+    {{ '%Y-%m-%d %H:%M:%S' | strftime(ansible_date_time.epoch) }}
+
+    # Use arbitrary epoch value
+    {{ '%Y-%m-%d' | strftime(0) }}          # => 1970-01-01
+    {{ '%Y-%m-%d' | strftime(1441357287) }} # => 2015-09-04
+
+.. note:: To get all string possibilities, check https://docs.python.org/2/library/time.html#time.strftime
 
 Debugging Filters
 `````````````````

@@ -61,7 +61,7 @@ options:
     type: bool
     default: true
 
-author: Ted Timmons (@tedder)
+author: tedder
 extends_documentation_fragment:
 - aws
 - ec2

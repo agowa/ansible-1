@@ -51,13 +51,12 @@ def main():
     module = AnsibleModule(argument_spec=dict(
         jid=dict(required=True),
         mode=dict(default='status', choices=['status', 'cleanup']),
-        # passed in from the async_status action plugin
-        _async_dir=dict(required=True, type='path'),
     ))
 
     mode = module.params['mode']
     jid = module.params['jid']
-    async_dir = module.params['_async_dir']
+
+    async_dir = os.environ.get('ANSIBLE_ASYNC_DIR', '~/.ansible_async')
 
     # setup logging directory
     logdir = os.path.expanduser(async_dir)

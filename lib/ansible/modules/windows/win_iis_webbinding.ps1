@@ -365,13 +365,6 @@ ElseIf (-not $current_bindings -and $state -eq 'present')
     $result.changed = $true
     $result.operation_type = 'added'
     $result.website_state = (Get-Website | Where-Object {$_.Name -eq $Name}).State
-
-    # incase there are no bindings we do a check before calling Create-BindingInfo
-    $web_binding = Get-SingleWebBinding $binding_parameters
-    if ($web_binding) {
-        $result.binding_info = Create-BindingInfo $web_binding
-    } else {
-        $result.binding_info = $null
-    } 
+    $result.binding_info = Create-BindingInfo (Get-SingleWebBinding $binding_parameters)
     Exit-Json $result
 }

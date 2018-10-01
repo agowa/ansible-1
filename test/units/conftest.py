@@ -24,15 +24,7 @@ def pytest_configure():
             coverage_instances.append(obj)
 
     if not coverage_instances:
-        coverage_config = os.environ.get('_ANSIBLE_COVERAGE_CONFIG')
-
-        if not coverage_config:
-            return
-
-        cov = coverage.Coverage(config_file=coverage_config)
-        coverage_instances.append(cov)
-    else:
-        cov = None
+        return
 
     os_exit = os._exit
 
@@ -44,6 +36,3 @@ def pytest_configure():
         os_exit(*args, **kwargs)
 
     os._exit = coverage_exit
-
-    if cov:
-        cov.start()

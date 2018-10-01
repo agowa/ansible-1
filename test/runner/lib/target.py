@@ -12,7 +12,6 @@ import sys
 
 from lib.util import (
     ApplicationError,
-    read_lines_without_comments,
 )
 
 MODULE_EXTENSIONS = '.py', '.ps1'
@@ -512,8 +511,8 @@ class IntegrationTarget(CompletionTarget):
         # static_aliases
 
         try:
-            aliases_path = os.path.join(path, 'aliases')
-            static_aliases = tuple(read_lines_without_comments(aliases_path, remove_blank_lines=True))
+            with open(os.path.join(path, 'aliases'), 'r') as aliases_file:
+                static_aliases = tuple(aliases_file.read().splitlines())
         except IOError as ex:
             if ex.errno != errno.ENOENT:
                 raise

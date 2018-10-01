@@ -18,8 +18,9 @@ module: bigip_user
 short_description: Manage user accounts and user attributes on a BIG-IP
 description:
   - Manage user accounts and user attributes on a BIG-IP. Typically this
-    module operates only on the REST API users and not the CLI users.
-    When specifying C(root), you may only change the password.
+    module operates only on the REST API users and not the CLI users. There
+    is one exception though and that is if you specify the C(username_credential)
+    of C(root). When specifying C(root), you may only change the password.
     Your other parameters will be ignored in this case. Changing the C(root)
     password is not an idempotent operation. Therefore, it will change it
     every time this module attempts to change it.
@@ -30,8 +31,8 @@ options:
       - Full name of the user.
   username_credential:
     description:
-      - Name of the user to create, remove or modify.
-      - The C(root) user may not be removed.
+      - Name of the user to create, remove or modify. There is a special case
+        that exists for the user C(root).
     required: True
     aliases:
       - name
@@ -217,6 +218,11 @@ except ImportError:
         from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
     except ImportError:
         HAS_F5SDK = False
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 
 class Parameters(AnsibleF5Parameters):

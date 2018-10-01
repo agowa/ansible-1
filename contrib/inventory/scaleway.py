@@ -47,7 +47,10 @@ import sys
 import time
 import traceback
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 EMPTY_GROUP = {
     'children': [],

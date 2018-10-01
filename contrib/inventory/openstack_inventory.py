@@ -59,7 +59,10 @@ import time
 from distutils.version import StrictVersion
 from io import StringIO
 
-import json
+try:
+    import json
+except:
+    import simplejson as json
 
 import openstack as sdk
 from openstack.cloud import inventory as sdk_inventory

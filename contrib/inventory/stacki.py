@@ -49,7 +49,10 @@ import sys
 import yaml
 from distutils.version import StrictVersion
 
-import json
+try:
+    import json
+except:
+    import simplejson as json
 
 try:
     import requests

@@ -28,10 +28,6 @@ options:
     description:
       - The interfaces that are part of the trunk.
       - To clear the list of interfaces, specify an empty list.
-  description:
-    description:
-      - Description of the trunk.
-    version_added: 2.7
   link_selection_policy:
     description:
       - Specifies, once the trunk is configured, the policy that the trunk uses to determine
@@ -96,16 +92,6 @@ options:
     choices:
       - long
       - short
-  qinq_ethertype:
-    description:
-      - Specifies the ether-type value used for the packets handled on this trunk when
-        it is a member in a QinQ vlan.
-      - The ether-type can be set to any string containing a valid hexadecimal 16 bits
-        number, or any of the well known ether-types; C(0x8100), C(0x9100), C(0x88a8).
-      - This parameter is not supported on Virtual Editions.
-      - You should always wrap this value in quotes to prevent Ansible from interpreting
-        the value as a literal hexadecimal number and converting it to an integer.
-    version_added: 2.7
   state:
     description:
       - When C(present), ensures that the resource exists.
@@ -120,70 +106,31 @@ author:
 '''
 
 EXAMPLES = r'''
-- name: Create a trunk on hardware
+- name: Create a ...
   bigip_trunk:
-    name: trunk1
-    interfaces:
-      - 1.1
-      - 1.2
-    link_selection_policy: maximum-bandwidth
-    frame_distribution_hash: destination-mac
-    lacp_enabled: yes
-    lacp_mode: passive
-    lacp_timeout: short
-    provider:
-      password: secret
-      server: lb.mydomain.com
-      user: admin
+    name: foo
+    password: secret
+    server: lb.mydomain.com
+    state: present
+    user: admin
   delegate_to: localhost
 '''
 
 RETURN = r'''
-lacp_mode:
-  description: Operation mode for LACP if the lacp option is enabled for the trunk.
-  returned: changed
-  type: string
-  sample: active
-lacp_timeout:
-  description: Rate at which the system sends the LACP control packets.
-  returned: changed
-  type: string
-  sample: long
-link_selection_policy:
-  description:
-    - LACP policy that the trunk uses to determine which member link (interface)
-      can handle new traffic.
-  returned: changed
-  type: string
-  sample: auto
-frame_distribution_hash:
-  description: Hash that the system uses as the frame distribution algorithm.
-  returned: changed
-  type: string
-  sample: src-dst-ipport
-lacp_enabled:
-  description: Whether the system supports the link aggregation control protocol (LACP) or not.
+param1:
+  description: The new param1 value of the resource.
   returned: changed
   type: bool
-  sample: yes
-interfaces:
-  description: Interfaces that are part of the trunk.
-  returned: changed
-  type: list
-  sample: ['int1', 'int2']
-description:
-  description: Description of the trunk.
+  sample: true
+param2:
+  description: The new param2 value of the resource.
   returned: changed
   type: string
-  sample: My trunk
-qinq_ethertype:
-  description: Ether-type value used for the packets handled on this trunk when it is a member in a QinQ vlan.
-  returned: changed
-  type: string
-  sample: 0x9100
+  sample: Foo is bar
 '''
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import env_fallback
 
 try:
     from library.module_utils.network.f5.bigip import HAS_F5SDK
@@ -191,8 +138,8 @@ try:
     from library.module_utils.network.f5.common import F5ModuleError
     from library.module_utils.network.f5.common import AnsibleF5Parameters
     from library.module_utils.network.f5.common import cleanup_tokens
+    from library.module_utils.network.f5.common import fq_name
     from library.module_utils.network.f5.common import f5_argument_spec
-    from library.module_utils.network.f5.compare import cmp_simple_list
     try:
         from library.module_utils.network.f5.common import iControlUnexpectedHTTPError
     except ImportError:
@@ -203,8 +150,8 @@ except ImportError:
     from ansible.module_utils.network.f5.common import F5ModuleError
     from ansible.module_utils.network.f5.common import AnsibleF5Parameters
     from ansible.module_utils.network.f5.common import cleanup_tokens
+    from ansible.module_utils.network.f5.common import fq_name
     from ansible.module_utils.network.f5.common import f5_argument_spec
-    from ansible.module_utils.network.f5.compare import cmp_simple_list
     try:
         from ansible.module_utils.network.f5.common import iControlUnexpectedHTTPError
     except ImportError:
@@ -217,8 +164,7 @@ class Parameters(AnsibleF5Parameters):
         'lacpTimeout': 'lacp_timeout',
         'linkSelectPolicy': 'link_selection_policy',
         'distributionHash': 'frame_distribution_hash',
-        'lacp': 'lacp_enabled',
-        'qinqEthertype': 'qinq_ethertype'
+        'lacp': 'lacp_enabled'
     }
 
     api_attributes = [
@@ -228,8 +174,6 @@ class Parameters(AnsibleF5Parameters):
         'linkSelectPolicy',
         'distributionHash',
         'interfaces',
-        'description',
-        'qinqEthertype'
     ]
 
     returnables = [
@@ -238,9 +182,7 @@ class Parameters(AnsibleF5Parameters):
         'link_selection_policy',
         'frame_distribution_hash',
         'lacp_enabled',
-        'interfaces',
-        'description',
-        'qinq_ethertype'
+        'interfaces'
     ]
 
     updatables = [
@@ -249,9 +191,7 @@ class Parameters(AnsibleF5Parameters):
         'link_selection_policy',
         'frame_distribution_hash',
         'lacp_enabled',
-        'interfaces',
-        'description',
-        'qinq_ethertype'
+        'interfaces'
     ]
 
 
@@ -363,8 +303,16 @@ class Difference(object):
 
     @property
     def interfaces(self):
-        result = cmp_simple_list(self.want.interfaces, self.have.interfaces)
-        return result
+        if self.want.interfaces is None:
+            return None
+        if self.have.interfaces is None and self.want.interfaces == '':
+            return None
+        if self.have.interfaces is not None and self.want.interfaces == '':
+            return []
+        if self.have.interfaces is None:
+            return self.want.interfaces
+        if set(self.want.interfaces) != set(self.have.interfaces):
+            return self.want.interfaces
 
 
 class ModuleManager(object):
@@ -530,12 +478,10 @@ class ArgumentSpec(object):
             lacp_enabled=dict(type='bool'),
             lacp_mode=dict(choices=['active', 'passive']),
             lacp_timeout=dict(choices=['short', 'long']),
-            description=dict(),
             state=dict(
                 default='present',
                 choices=['absent', 'present']
-            ),
-            qinq_ethertype=dict(type='raw'),
+            )
         )
         self.argument_spec = {}
         self.argument_spec.update(f5_argument_spec)

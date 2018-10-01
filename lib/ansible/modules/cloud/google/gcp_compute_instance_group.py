@@ -80,19 +80,19 @@ options:
                 required: false
     network:
         description:
-            - The network to which all instances in the instance group belong.
+            - A reference to Network resource.
         required: false
     region:
         description:
-            - The region where the instance group is located (for regional resources).
+            - A reference to Region resource.
         required: false
     subnetwork:
         description:
-            - The subnetwork to which all instances in the instance group belong.
+            - A reference to Subnetwork resource.
         required: false
     zone:
         description:
-            - A reference to the zone where the instance group resides.
+            - A reference to Zone resource.
         required: true
 extends_documentation_fragment: gcp
 '''
@@ -100,24 +100,27 @@ extends_documentation_fragment: gcp
 EXAMPLES = '''
 - name: create a network
   gcp_compute_network:
-      name: "network-instancegroup"
+      name: 'network-instancegroup'
       project: "{{ gcp_project }}"
       auth_kind: "{{ gcp_cred_kind }}"
       service_account_file: "{{ gcp_cred_file }}"
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
   register: network
-
 - name: create a instance group
   gcp_compute_instance_group:
-      name: "test_object"
+      name: testObject
       named_ports:
-      - name: ansible
-        port: 1234
+        - name: ansible
+          port: 1234
       network: "{{ network }}"
-      zone: us-central1-a
-      project: "test_project"
-      auth_kind: "service_account"
-      service_account_file: "/tmp/auth.pem"
+      zone: 'us-central1-a'
+      project: testProject
+      auth_kind: service_account
+      service_account_file: /tmp/auth.pem
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
 '''
 
@@ -168,22 +171,22 @@ RETURN = '''
                 type: int
     network:
         description:
-            - The network to which all instances in the instance group belong.
+            - A reference to Network resource.
         returned: success
         type: dict
     region:
         description:
-            - The region where the instance group is located (for regional resources).
+            - A reference to Region resource.
         returned: success
         type: str
     subnetwork:
         description:
-            - The subnetwork to which all instances in the instance group belong.
+            - A reference to Subnetwork resource.
         returned: success
         type: dict
     zone:
         description:
-            - A reference to the zone where the instance group resides.
+            - A reference to Zone resource.
         returned: success
         type: str
 '''
@@ -221,9 +224,6 @@ def main():
         )
     )
 
-    if not module.params['scopes']:
-        module.params['scopes'] = ['https://www.googleapis.com/auth/compute']
-
     state = module.params['state']
     kind = 'compute#instanceGroup'
 
@@ -233,10 +233,10 @@ def main():
     if fetch:
         if state == 'present':
             if is_different(module, fetch):
-                fetch = update(module, self_link(module), kind)
+                fetch = update(module, self_link(module), kind, fetch)
                 changed = True
         else:
-            delete(module, self_link(module), kind)
+            delete(module, self_link(module), kind, fetch)
             fetch = {}
             changed = True
     else:
@@ -256,11 +256,11 @@ def create(module, link, kind):
     return wait_for_operation(module, auth.post(link, resource_to_request(module)))
 
 
-def update(module, link, kind):
+def update(module, link, kind, fetch):
     module.fail_json(msg="InstanceGroup cannot be edited")
 
 
-def delete(module, link, kind):
+def delete(module, link, kind, fetch):
     auth = GcpSession(module, 'compute')
     return wait_for_operation(module, auth.delete(link))
 
@@ -270,7 +270,7 @@ def resource_to_request(module):
         u'kind': 'compute#instanceGroup',
         u'description': module.params.get('description'),
         u'name': module.params.get('name'),
-        u'namedPorts': InstanceGroupNamedPortsArray(module.params.get('named_ports', []), module).to_request(),
+        u'namedPorts': InstaGroupNamedPortsArray(module.params.get('named_ports', []), module).to_request(),
         u'network': replace_resource_dict(module.params.get(u'network', {}), 'selfLink'),
         u'region': region_selflink(module.params.get('region'), module.params),
         u'subnetwork': replace_resource_dict(module.params.get(u'subnetwork', {}), 'selfLink')
@@ -345,7 +345,7 @@ def response_to_hash(module, response):
         u'description': response.get(u'description'),
         u'id': response.get(u'id'),
         u'name': response.get(u'name'),
-        u'namedPorts': InstanceGroupNamedPortsArray(response.get(u'namedPorts', []), module).from_response(),
+        u'namedPorts': InstaGroupNamedPortsArray(response.get(u'namedPorts', []), module).from_response(),
         u'network': response.get(u'network'),
         u'region': response.get(u'region'),
         u'subnetwork': response.get(u'subnetwork')
@@ -373,7 +373,7 @@ def async_op_url(module, extra_data=None):
 def wait_for_operation(module, response):
     op_result = return_if_object(module, response, 'compute#operation')
     if op_result is None:
-        return {}
+        return None
     status = navigate_hash(op_result, ['status'])
     wait_done = wait_for_completion(status, op_result, module)
     return fetch_resource(module, navigate_hash(wait_done, ['targetLink']), 'compute#instanceGroup')
@@ -398,7 +398,7 @@ def raise_if_errors(response, err_path, module):
         module.fail_json(msg=errors)
 
 
-class InstanceGroupNamedPortsArray(object):
+class InstaGroupNamedPortsArray(object):
     def __init__(self, request, module):
         self.module = module
         if request:

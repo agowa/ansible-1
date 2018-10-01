@@ -17,9 +17,6 @@ DOCUMENTATION = '''
     short_description: OpenStack inventory source
     requirements:
         - openstacksdk
-    extends_documentation_fragment:
-        - inventory_cache
-        - constructed
     description:
         - Get inventory hosts from OpenStack clouds
         - Uses openstack.(yml|yaml) YAML configuration file to configure the inventory plugin
@@ -155,12 +152,10 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
         if 'clouds' in self._config_data:
             self._config_data = {}
 
-        if cache:
-            cache = self.get_option('cache')
         source_data = None
-        if cache:
+        if cache and cache_key in self._cache:
             try:
-                source_data = self.cache.get(cache_key)
+                source_data = self._cache[cache_key]
             except KeyError:
                 pass
 
@@ -196,8 +191,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable, Cacheable):
             source_data = cloud_inventory.list_hosts(
                 expand=expand_hostvars, fail_on_cloud_config=fail_on_errors)
 
-            if self.cache is not None:
-                self.cache.set(cache_key, source_data)
+            self._cache[cache_key] = source_data
 
         self._populate_from_source(source_data)
 

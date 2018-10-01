@@ -106,7 +106,7 @@ class TestManager(unittest.TestCase):
             port_misuse_policy='misuse1',
             partition='Common',
             state='present',
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))

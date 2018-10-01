@@ -1,6 +1,22 @@
-# Copyright: (c) 2012, Jan-Piet Mens <jpmens () gmail.com>
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# (c) 2012, Jan-Piet Mens <jpmens () gmail.com>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible.  If not, see <http://www.gnu.org/licenses/>.
+#
 
+# Make coding more python3-ish
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
 
@@ -100,6 +116,19 @@ def get_docstring(filename, fragment_loader, verbose=False, ignore_errors=False)
     data = read_docstring(filename, verbose=verbose, ignore_errors=ignore_errors)
 
     # add fragments to documentation
+    if data.get('doc', False):
+        add_fragments(data['doc'], filename, fragment_loader=fragment_loader)
+
+    return data['doc'], data['plainexamples'], data['returndocs'], data['metadata']
+
+
+def get_docstub(filename, fragment_loader, verbose=False, ignore_errors=False):
+    """
+    When only short_description is needed, load a stub of the full DOCUMENTATION string to speed up operation.
+    """
+
+    data = read_docstub(filename, verbose=verbose, ignore_errors=ignore_errors)
+
     if data.get('doc', False):
         add_fragments(data['doc'], filename, fragment_loader=fragment_loader)
 

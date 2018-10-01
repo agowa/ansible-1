@@ -31,7 +31,7 @@ DOCUMENTATION = """
 
 import os
 from distutils.spawn import find_executable
-from subprocess import Popen, PIPE
+from subprocess import call, Popen, PIPE
 
 from ansible.errors import AnsibleError, AnsibleConnectionFailure, AnsibleFileNotFound
 from ansible.module_utils._text import to_bytes, to_text
@@ -103,8 +103,7 @@ class Connection(ConnectionBase):
 
         local_cmd = [to_bytes(i, errors='surrogate_or_strict') for i in local_cmd]
 
-        process = Popen(local_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        process.communicate()
+        call(local_cmd)
 
     def fetch_file(self, in_path, out_path):
         """ fetch a file from lxd to local """
@@ -116,8 +115,7 @@ class Connection(ConnectionBase):
 
         local_cmd = [to_bytes(i, errors='surrogate_or_strict') for i in local_cmd]
 
-        process = Popen(local_cmd, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        process.communicate()
+        call(local_cmd)
 
     def close(self):
         """ close the connection (nothing to do here) """

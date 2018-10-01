@@ -41,7 +41,7 @@ options:
       - Share description.
   list:
     description:
-      - Specify whether to allow or deny file listing, in case user has no permission on share. Also known as Access-Based Enumeration.
+      - Specify whether to allow or deny file listing, in case user got no permission on share.
     type: bool
     default: 'no'
   read:

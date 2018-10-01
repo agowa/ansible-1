@@ -1,7 +1,3 @@
-:orphan:
-
-.. _testing_compile:
-
 *************
 Compile Tests
 *************

@@ -25,16 +25,19 @@ author: Henryk Konsek (@hekonsek)
 description:
     - This module manages volumes on Scaleway account
       U(https://developer.scaleway.com)
-extends_documentation_fragment: scaleway
 
 options:
   state:
     description:
      - Indicate desired state of the volume.
-    default: present
+    required: true
     choices:
       - present
       - absent
+  oauth_token:
+    description:
+     - Scaleway OAuth token.
+    required: true
   region:
     description:
      - Scaleway region to use (for example par1).
@@ -57,6 +60,10 @@ options:
   volume_type:
     description:
      - Type of the volume (for example 'l_ssd').
+  timeout:
+    description:
+    - Timeout for API calls
+    default: 30
 '''
 
 EXAMPLES = '''
@@ -96,18 +103,24 @@ data:
 }
 '''
 
-from ansible.module_utils.scaleway import SCALEWAY_LOCATION, scaleway_argument_spec, Scaleway
+from ansible.module_utils.scaleway import ScalewayAPI, SCALEWAY_LOCATION
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.basic import env_fallback
+from ansible.module_utils.scaleway import ScalewayAPI
 
 
 def core(module):
+    api_token = module.params['oauth_token']
+    region = module.params['region']
     state = module.params['state']
     name = module.params['name']
     organization = module.params['organization']
     size = module.params['size']
     volume_type = module.params['volume_type']
 
-    account_api = Scaleway(module)
+    account_api = ScalewayAPI(module,
+                              headers={'X-Auth-Token': api_token},
+                              base_url=SCALEWAY_LOCATION[region]['api_endpoint'])
     response = account_api.get('volumes')
     status_code = response.status_code
     volumes_json = response.json
@@ -151,17 +164,22 @@ def core(module):
 
 
 def main():
-    argument_spec = scaleway_argument_spec()
-    argument_spec.update(dict(
-        state=dict(default='present', choices=['absent', 'present']),
-        name=dict(required=True),
-        size=dict(type='int'),
-        organization=dict(),
-        volume_type=dict(),
-        region=dict(required=True, choices=SCALEWAY_LOCATION.keys()),
-    ))
     module = AnsibleModule(
-        argument_spec=argument_spec,
+        argument_spec=dict(
+            region=dict(required=True, choices=SCALEWAY_LOCATION.keys()),
+            oauth_token=dict(
+                no_log=True,
+                # Support environment variable for Scaleway OAuth Token
+                fallback=(env_fallback, ['SCW_TOKEN', 'SCW_API_KEY', 'SCW_OAUTH_TOKEN']),
+                required=True,
+            ),
+            state=dict(choices=['present', 'absent'], required=True),
+            name=dict(required=True),
+            size=dict(type='int'),
+            organization=dict(),
+            volume_type=dict(),
+            timeout=dict(type='int', default=30),
+        ),
         supports_check_mode=True,
     )
 

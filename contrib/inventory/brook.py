@@ -84,7 +84,10 @@ try:
 except ImportError:
     from configparser import ConfigParser
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 try:
     import libbrook

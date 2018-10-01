@@ -62,8 +62,7 @@ class YamllintTest(SanitySingleVersion):
 
         return SanitySuccess(self.name)
 
-    @staticmethod
-    def test_paths(args, paths):
+    def test_paths(self, args, paths):
         """
         :type args: SanityConfig
         :type paths: list[str]

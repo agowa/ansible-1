@@ -1,4 +1,4 @@
 cloud/azure
-shippable/azure/group7
+shippable/azure/group2
+unstable
 destructive
-azure_rm_virtualmachine_facts

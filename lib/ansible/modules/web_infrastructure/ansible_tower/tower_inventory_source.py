@@ -1,8 +1,9 @@
 #!/usr/bin/python
 # coding: utf-8 -*-
-
-# Copyright: (c) 2018, Adrien Fleury <fleu42@gmail.com>
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+#
+# (c) 2018, Adrien Fleury <fleu42@gmail.com>
+# GNU General Public License v3.0+
+# (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -30,6 +31,8 @@ options:
     description:
       description:
         - The description to use for the inventory source.
+      required: False
+      default: null
     inventory:
       description:
         - The inventory the source is linked to.
@@ -55,6 +58,7 @@ options:
     credential:
       description:
         - Credential to use to retrieve the inventory from.
+      required: False
     source_vars:
       description:
         - >-
@@ -62,20 +66,24 @@ options:
           file. For example with Openstack, specifying *private: false* would
           change the output of the openstack.py script. It has to be YAML or
           JSON.
+      required: False
     timeout:
       description:
         - Number in seconds after which the Tower API methods will time out.
     source_project:
       description:
         - Use a *project* as a source for the *inventory*.
+      required: False
     source_path:
       description:
         - Path to the file to use as a source in the selected *project*.
+      required: False
     update_on_project_update:
       description:
         - >-
           That parameter will sync the inventory when the project is synced. It
           can only be used with a SCM source.
+      required: False
       type: bool
     source_regions:
       description:
@@ -83,23 +91,27 @@ options:
           List of regions for your cloud provider. You can include multiple all
           regions. Only Hosts associated with the selected regions will be
           updated. Refer to Ansible Tower documentation for more detail.
+      required: False
     instance_filters:
       description:
         - >-
           Provide a comma-separated list of filter expressions. Hosts are
           imported when all of the filters match. Refer to Ansible Tower
           documentation for more detail.
+      required: False
     group_by:
       description:
         - >-
           Specify which groups to create automatically. Group names will be
           created similar to the options selected. If blank, all groups above
           are created. Refer to Ansible Tower documentation for more detail.
+      required: False
     source_script:
       description:
         - >-
           The source custom script to use to build the inventory. It needs to
           exist.
+      required: False
     overwrite:
       description:
         - >-
@@ -111,6 +123,7 @@ options:
           left in the "all" default group for the inventory. When not checked,
           local child hosts and groups not found on the external source will
           remain untouched by the inventory update process.
+      required: False
       type: bool
     overwrite_vars:
       description:
@@ -119,12 +132,14 @@ options:
           and replaced by those found on the external source. When not checked,
           a merge will be performed, combining local variables with those found
           on the external source.
+      required: False
       type: bool
     update_on_launch:
       description:
         - >-
           Each time a job runs using this inventory, refresh the inventory from
           the selected source before executing job tasks.
+      required: False
       type: bool
     update_cache_timeout:
       description:
@@ -133,14 +148,17 @@ options:
           job runs and callbacks the task system will evaluate the timestamp of
           the latest sync. If it is older than Cache Timeout, it is not
           considered current, and a new inventory sync will be performed.
+      required: False
     state:
       description:
         - Desired state of the resource.
+      required: False
       default: "present"
       choices: ["present", "absent"]
     tower_verify_ssl:
       description:
         - Tower option to avoid certificates check.
+      required: False
       type: bool
 extends_documentation_fragment: tower
 '''
@@ -291,7 +309,7 @@ def main():
                         'instance_filters', 'group_by', 'overwrite',
                         'overwrite_vars', 'update_on_launch',
                         'update_cache_timeout'):
-                if module.params.get(key) is not None:
+                if module.params.get(key):
                     params[key] = module.params.get(key)
 
             if state == 'present':

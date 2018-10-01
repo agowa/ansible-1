@@ -139,7 +139,6 @@ EXAMPLES = r'''
     tenant: production
     ospf: ospf1
     state: present
-  delegate_to: localhost
 
 - name: Ensure ospf interface policy does not exist
   aci_interface_policy_ospf:
@@ -149,7 +148,6 @@ EXAMPLES = r'''
     tenant: production
     ospf: ospf1
     state: present
-  delegate_to: localhost
 
 - name: Query an ospf interface policy
   aci_interface_policy_ospf:
@@ -159,8 +157,6 @@ EXAMPLES = r'''
     tenant: production
     ospf: ospf1
     state: query
-  delegate_to: localhost
-  register: query_result
 
 - name: Query all ospf interface policies in tenant production
   aci_interface_policy_ospf:
@@ -169,8 +165,6 @@ EXAMPLES = r'''
     password: SomeSecretPassword
     tenant: production
     state: query
-  delegate_to: localhost
-  register: query_result
 '''
 
 RETURN = r'''
@@ -352,8 +346,8 @@ def main():
         root_class=dict(
             aci_class='ospfIfPol',
             aci_rn='tn-{0}/ospfIfPol-{1}'.format(tenant, ospf),
+            filter_target='eq(ospfIfPol.name, "{0}")'.format(ospf),
             module_object=ospf,
-            target_filter={'name': ospf},
         ),
     )
 

@@ -38,7 +38,10 @@ import sys
 # https://pypi.org/project/serfclient/
 from serfclient import SerfClient, EnvironmentConfig
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 _key = 'serf'
 

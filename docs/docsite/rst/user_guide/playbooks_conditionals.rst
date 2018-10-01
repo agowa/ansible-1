@@ -22,22 +22,23 @@ Sometimes you will want to skip a particular step on a particular host.
 This could be something as simple as not installing a certain package if the operating system is a particular version,
 or it could be something like performing some cleanup steps if a filesystem is getting full.
 
-This is easy to do in Ansible with the `when` clause, which contains a raw Jinja2 expression without double curly braces (see :ref:`group_by_module`).
+This is easy to do in Ansible with the `when` clause, which contains a raw Jinja2 expression without double curly braces (see :doc:`playbooks_variables`).
 It's actually pretty simple::
 
     tasks:
       - name: "shut down Debian flavored systems"
         command: /sbin/shutdown -t now
-        when: ansible_facts['os_family'] == "Debian"
-        # note that all variables can be directly in conditionals without double curly braces
+        when: ansible_os_family == "Debian"
+        # note that Ansible facts and vars like ansible_os_family can be used
+        # directly in conditionals without double curly braces
 
 You can also use parentheses to group conditions::
 
     tasks:
       - name: "shut down CentOS 6 and Debian 7 systems"
         command: /sbin/shutdown -t now
-        when: (ansible_facts['distribution'] == "CentOS" and ansible_facts['distribution_major_version'] == "6") or
-              (ansible_facts['distribution'] == "Debian" and ansible_facts['distribution_major_version'] == "7")
+        when: (ansible_distribution == "CentOS" and ansible_distribution_major_version == "6") or
+              (ansible_distribution == "Debian" and ansible_distribution_major_version == "7")
 
 Multiple conditions that all need to be true (a logical 'and') can also be specified as a list::
 
@@ -45,10 +46,10 @@ Multiple conditions that all need to be true (a logical 'and') can also be speci
       - name: "shut down CentOS 6 systems"
         command: /sbin/shutdown -t now
         when:
-          - ansible_facts['distribution'] == "CentOS"
-          - ansible_facts['distribution_major_version'] == "6"
+          - ansible_distribution == "CentOS"
+          - ansible_distribution_major_version == "6"
 
-A number of Jinja2 "tests" and "filters" can also be used in when statements, some of which are unique
+A number of Jinja2 "filters" can also be used in when statements, some of which are unique
 and provided by Ansible.  Suppose we want to ignore the error of one statement and then
 decide to do something conditionally based on success or failure::
 
@@ -71,18 +72,17 @@ decide to do something conditionally based on success or failure::
 .. note:: both `success` and `succeeded` work (`fail`/`failed`, etc).
 
 
-To see what facts are available on a particular system, you can do the following in a playbook::
+As a reminder, to see what facts are available on a particular system, you can do the following::
 
-    - debug: var=ansible_facts
-
+    ansible hostname.example.com -m setup
 
 Tip: Sometimes you'll get back a variable that's a string and you'll want to do a math operation comparison on it.  You can do this like so::
 
     tasks:
       - shell: echo "only on Red Hat 6, derivatives, and later"
-        when: ansible_facts['os_family'] == "RedHat" and ansible_facts['lsb']['major_release']|int >= 6
+        when: ansible_os_family == "RedHat" and ansible_lsb.major_release|int >= 6
 
-.. note:: the above example requires the lsb_release package on the target host in order to return the 'lsb major_release' fact.
+.. note:: the above example requires the lsb_release package on the target host in order to return the ansible_lsb.major_release fact.
 
 Variables defined in the playbooks or inventory can also be used.  An example may be the execution of a task based on a variable's boolean value::
 
@@ -170,20 +170,18 @@ Or with a role::
     - hosts: webservers
       roles:
          - role: debian_stock_config
-           when: ansible_facts['os_family'] == 'Debian'
+           when: ansible_os_family == 'Debian'
 
 You will note a lot of 'skipped' output by default in Ansible when using this approach on systems that don't match the criteria.
-In many cases the ``group_by`` module (see :doc:`modules`) can be a more streamlined way to accomplish the same thing; see
-:ref:`os_variance`.
+Read up on the 'group_by' module in the :doc:`modules` docs for a more streamlined way to accomplish the same thing.
 
-When a conditional is used with ``include_*`` tasks instead of imports, it is applied `only` to the include task itself and not
-to any other tasks within the included file(s). A common situation where this distinction is important is as follows::
+When used with `include_*` tasks instead of imports, the conditional is applied _only_ to the include task itself and not any other
+tasks within the included file(s). A common situation where this distinction is important is as follows::
 
-    # We wish to include a file to define a variable when it is not
-    # already defined
+    # include a file to define a variable when it is not already defined
 
     # main.yml
-    - import_tasks: other_tasks.yml # note "import"
+    - include_tasks: other_tasks.yml
       when: x is not defined
 
     # other_tasks.yml
@@ -192,19 +190,8 @@ to any other tasks within the included file(s). A common situation where this di
     - debug:
         var: x
 
-This expands at include time to the equivalent of::
-
-    - set_fact:
-        x: foo
-      when: x is not defined
-    - debug:
-        var: x
-      when: x is not defined
-
-Thus if ``x`` is initially undefined, the ``debug`` task will be skipped.  By using ``include_tasks`` instead of ``import_tasks``,
-both tasks from ``other_tasks.yml`` will be executed as expected.
-
-For more information on the differences between ``include`` v ``import`` see :ref:`playbooks_reuse`.
+In the above example, if ``import_tasks`` had been used instead both included tasks would have also been skipped. With ``include_tasks``
+instead, the tasks are executed as expected because the conditional is not applied to them.
 
 .. _conditional_imports:
 
@@ -224,13 +211,13 @@ but it is easily handled with a minimum of syntax in an Ansible Playbook::
       remote_user: root
       vars_files:
         - "vars/common.yml"
-        - [ "vars/{{ ansible_facts['os_family'] }}.yml", "vars/os_defaults.yml" ]
+        - [ "vars/{{ ansible_os_family }}.yml", "vars/os_defaults.yml" ]
       tasks:
       - name: make sure apache is started
         service: name={{ apache }} state=started
 
 .. note::
-   The variable "ansible_facts['os_family']" is being interpolated into
+   The variable 'ansible_os_family' is being interpolated into
    the list of filenames being defined for vars_files.
 
 As a reminder, the various YAML files contain just keys and values::
@@ -267,7 +254,7 @@ The following example shows how to template out a configuration file that was ve
       loop: "{{ query('first_found', { 'files': myfiles, 'paths': mypaths}) }}"
       vars:
         myfiles:
-          - "{{ansible_facts['distribution']}}.conf"
+          - "{{ansible_distribution}}.conf"
           -  default.conf
         mypaths: ['search_location_one/somedir/', '/opt/other_location/somedir/']
 
@@ -338,10 +325,10 @@ The following Facts are frequently used in Conditionals - see above for examples
 
 .. _ansible_distribution:
 
-ansible_facts['distribution']
------------------------------
+ansible_distribution
+--------------------
 
-Possible values (sample, not complete list)::
+Possible values::
 
     Alpine
     Altlinux
@@ -366,17 +353,17 @@ Possible values (sample, not complete list)::
 
 .. _ansible_distribution_major_version:
 
-ansible_facts['distribution_major_version']
--------------------------------------------
+ansible_distribution_major_version
+----------------------------------
 
 This will be the major version of the operating system. For example, the value will be `16` for Ubuntu 16.04.
 
 .. _ansible_os_family:
 
-ansible_facts['os_family']
---------------------------
+ansible_os_family
+-----------------
 
-Possible values (sample, not complete list)::
+Possible values::
 
     AIX
     Alpine

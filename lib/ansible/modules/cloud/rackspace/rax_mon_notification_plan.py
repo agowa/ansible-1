@@ -45,7 +45,7 @@ options:
     description:
     - Notification list to use when the alarm state is OK. Must be an array of
       valid rax_mon_notification ids.
-author: Ash Wilson (@smashwilson)
+author: Ash Wilson
 extends_documentation_fragment: rackspace.openstack
 '''
 

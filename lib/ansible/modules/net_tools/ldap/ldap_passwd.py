@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # Copyright: (c) 2017-2018, Keller Fuchs <kellerfuchs@hashbang.sh>
+#
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -32,12 +33,13 @@ notes:
     and I(bind_pw).
 version_added: '2.6'
 author:
-  - Keller Fuchs (@KellerFuchs)
+  - Keller Fuchs (@kellerfuchs)
 requirements:
   - python-ldap
 options:
   passwd:
     required: true
+    default: null
     description:
       - The (plaintext) password to be set for I(dn).
 extends_documentation_fragment: ldap.documentation
@@ -115,7 +117,7 @@ class LdapPasswd(LdapGeneric):
 
         # Change the password (or throw an exception)
         try:
-            self.connection.passwd_s(self.dn, None, self.passwd)
+            self.connection.passwd_set(self.dn, None, self.passwd)
         except ldap.LDAPError as e:
             self.fail("Unable to set password", e)
 

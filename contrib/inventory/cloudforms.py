@@ -31,7 +31,10 @@ from requests.auth import HTTPBasicAuth
 import warnings
 from ansible.errors import AnsibleError
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 
 class CloudFormsInventory(object):

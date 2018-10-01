@@ -68,37 +68,33 @@ options:
         required: true
       port:
         description:
-          - Specifies the port to use when building the connection to the
-            remote device.
+          - Specifies the port to use when building the connection to the remote device.
         default: 22
       username:
         description:
           - Configures the username to use to authenticate the connection to
             the remote device.  This value is used to authenticate
             the SSH session. If the value is not specified in the task, the
-            value of environment variable C(ANSIBLE_NET_USERNAME) will be used
-            instead.
+            value of environment variable C(ANSIBLE_NET_USERNAME) will be used instead.
       password:
         description:
           - Specifies the password to use to authenticate the connection to
             the remote device.   This value is used to authenticate
             the SSH session. If the value is not specified in the task, the
-            value of environment variable C(ANSIBLE_NET_PASSWORD) will be used
-            instead.
+            value of environment variable C(ANSIBLE_NET_PASSWORD) will be used instead.
       timeout:
         description:
-          - Specifies the timeout in seconds for communicating with the network
-            device for either connecting or sending commands.  If the timeout
-            is exceeded before the operation is completed, the module will
-            error.
+          - Specifies the timeout in seconds for communicating with the network device
+            for either connecting or sending commands.  If the timeout is
+            exceeded before the operation is completed, the module will error.
         default: 10
       ssh_keyfile:
         description:
           - Specifies the SSH key to use to authenticate the connection to
             the remote device.   This value is the path to the
-            key used to authenticate the SSH session. If the value is not
-            specified in the task, the value of environment variable
-            C(ANSIBLE_NET_SSH_KEYFILE) will be used instead.
+            key used to authenticate the SSH session. If the value is not specified
+            in the task, the value of environment variable C(ANSIBLE_NET_SSH_KEYFILE)
+            will be used instead.
   gather_subset:
     version_added: "2.6"
     description:
@@ -235,7 +231,7 @@ class FactsBase(object):
 
 class Default(FactsBase):
 
-    COMMANDS = ['show sys-info', 'show running-config']
+    COMMANDS = ['display sys-info', 'display running-config']
 
     def populate(self):
         super(Default, self).populate()
@@ -301,12 +297,12 @@ class Default(FactsBase):
 class Hardware(FactsBase):
 
     COMMANDS = [
-        'show running-config'
+        'display running-config'
     ]
 
     def populate(self):
         super(Hardware, self).populate()
-        data = self.run(['show process memory'])
+        data = self.run(['display process memory'])
         data = to_text(data, errors='surrogate_or_strict').strip()
         data = data.replace(r"\n", "\n")
         if data:
@@ -335,7 +331,7 @@ class Hardware(FactsBase):
 
 class Config(FactsBase):
 
-    COMMANDS = ['show running-config']
+    COMMANDS = ['display running-config']
 
     def populate(self):
         super(Config, self).populate()
@@ -346,7 +342,7 @@ class Config(FactsBase):
 
 class Interfaces(FactsBase):
 
-    COMMANDS = ['show interface brief']
+    COMMANDS = ['display interface brief']
 
     def populate(self):
         super(Interfaces, self).populate()
@@ -354,10 +350,10 @@ class Interfaces(FactsBase):
         self.facts['all_ipv4_addresses'] = list()
         self.facts['all_ipv6_addresses'] = list()
 
-        data1 = self.run(['show interface status'])
+        data1 = self.run(['display interface status'])
         data1 = to_text(data1, errors='surrogate_or_strict').strip()
         data1 = data1.replace(r"\n", "\n")
-        data2 = self.run(['show interface mac-address'])
+        data2 = self.run(['display interface mac-address'])
         data2 = to_text(data2, errors='surrogate_or_strict').strip()
         data2 = data2.replace(r"\n", "\n")
         lines1 = None
@@ -368,7 +364,7 @@ class Interfaces(FactsBase):
             lines2 = self.parse_interfaces(data2)
         if lines1 is not None and lines2 is not None:
             self.facts['interfaces'] = self.populate_interfaces(lines1, lines2)
-        data3 = self.run(['show lldp neighbors'])
+        data3 = self.run(['display lldp neighbors'])
         data3 = to_text(data3, errors='surrogate_or_strict').strip()
         data3 = data3.replace(r"\n", "\n")
         if data3:
@@ -376,9 +372,9 @@ class Interfaces(FactsBase):
         if lines3 is not None:
             self.facts['neighbors'] = self.populate_neighbors(lines3)
 
-        data4 = self.run(['show ip interface brief vrf all'])
-        data5 = self.run(['show ipv6 interface brief vrf all'])
-        data4 = to_text(data4, errors='surrogate_or_strict').strip()
+        data4 = self.run(['display ip interface brief vrf all'])
+        data5 = self.run(['display ipv6 interface brief vrf all'])
+        data4 = to_text(data4, errors='surrogate_or_stdisplay').strip()
         data4 = data4.replace(r"\n", "\n")
         data5 = to_text(data5, errors='surrogate_or_strict').strip()
         data5 = data5.replace(r"\n", "\n")
@@ -488,24 +484,14 @@ class Interfaces(FactsBase):
 
     def populate_neighbors(self, lines3):
         neighbors = dict()
-        device_name = ''
         for line in lines3:
             neighborSplit = line.split()
             innerData = dict()
-            count = len(neighborSplit)
-            if count == 5:
-                local_interface = neighborSplit[1].strip()
-                innerData['Device Name'] = neighborSplit[0].strip()
-                innerData['Hold Time'] = neighborSplit[2].strip()
-                innerData['Capability'] = neighborSplit[3].strip()
-                innerData['Remote Port'] = neighborSplit[4].strip()
-                neighbors[local_interface] = innerData
-            elif count == 4:
-                local_interface = neighborSplit[0].strip()
-                innerData['Hold Time'] = neighborSplit[1].strip()
-                innerData['Capability'] = neighborSplit[2].strip()
-                innerData['Remote Port'] = neighborSplit[3].strip()
-                neighbors[local_interface] = innerData
+            innerData['Local Interface'] = neighborSplit[1].strip()
+            innerData['Hold Time'] = neighborSplit[2].strip()
+            innerData['Capability'] = neighborSplit[3].strip()
+            innerData['Remote Port'] = neighborSplit[4].strip()
+            neighbors[neighborSplit[0].strip()] = innerData
         return neighbors
 
     def parse_neighbors(self, neighbors):

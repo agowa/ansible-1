@@ -22,7 +22,7 @@ version_added: 2.1
 author: "Kamil Szczygiel (@kamsz)"
 requirements:
     - "python >= 2.6"
-    - "influxdb >= 0.9 & <= 1.2.4"
+    - "influxdb >= 0.9"
     - requests
 options:
     database_name:

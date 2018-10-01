@@ -46,7 +46,10 @@ import sys
 import time
 import ConfigParser
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 from ansible.module_utils.urls import open_url
 

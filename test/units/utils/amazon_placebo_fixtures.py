@@ -61,16 +61,12 @@ def placeboify(request, monkeypatch):
         # remove the test_ prefix from the function & file name
     ).replace('test_', '')
 
-    if not os.getenv('PLACEBO_RECORD'):
-        if not os.path.isdir(recordings_path):
-            raise NotImplementedError('Missing Placebo recordings in directory: %s' % recordings_path)
-    else:
-        try:
-            # make sure the directory for placebo test recordings is available
-            os.makedirs(recordings_path)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+    try:
+        # make sure the directory for placebo test recordings is available
+        os.makedirs(recordings_path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
 
     pill = placebo.attach(session, data_path=recordings_path)
     if os.getenv('PLACEBO_RECORD'):

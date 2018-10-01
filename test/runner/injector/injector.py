@@ -25,6 +25,7 @@ NOTE: Running ansible-test with the --tox option or inside a virtual environment
 
 from __future__ import absolute_import, print_function
 
+import errno
 import json
 import os
 import sys
@@ -104,8 +105,6 @@ def main():
 
         if os.path.basename(__file__) == 'injector.py':
             args, env = runner()  # code coverage collection is baked into the AnsiballZ wrapper when needed
-        elif os.path.basename(__file__) == 'python.py':
-            args, env = python()  # run arbitrary python commands using the correct python and with optional code coverage
         else:
             args, env = injector()
 
@@ -118,20 +117,6 @@ def main():
     except Exception as ex:
         logger.fatal(ex)
         raise
-
-
-def python():
-    """
-    :rtype: list[str], dict[str, str]
-    """
-    if config.coverage_file:
-        args, env = coverage_command()
-    else:
-        args, env = [config.python_interpreter], os.environ.copy()
-
-    args += config.arguments[1:]
-
-    return args, env
 
 
 def injector():
@@ -202,10 +187,10 @@ def find_executable(executable):
     :rtype: str
     """
     self = os.path.abspath(__file__)
-    path = os.environ.get('PATH', os.path.defpath)
+    path = os.environ.get('PATH', os.defpath)
     seen_dirs = set()
 
-    for path_dir in path.split(os.path.pathsep):
+    for path_dir in path.split(os.pathsep):
         if path_dir in seen_dirs:
             continue
 

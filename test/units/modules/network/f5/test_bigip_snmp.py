@@ -129,7 +129,7 @@ class TestManager(unittest.TestCase):
     def test_update_agent_status_traps(self, *args):
         set_module_args(dict(
             agent_status_traps='enabled',
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))
@@ -165,7 +165,7 @@ class TestManager(unittest.TestCase):
                 'foo',
                 'baz.foo.com'
             ],
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))
@@ -201,7 +201,7 @@ class TestManager(unittest.TestCase):
             allowed_addresses=[
                 'default'
             ],
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))
@@ -233,7 +233,7 @@ class TestManager(unittest.TestCase):
     def test_update_allowed_addresses_empty(self, *args):
         set_module_args(dict(
             allowed_addresses=[''],
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))

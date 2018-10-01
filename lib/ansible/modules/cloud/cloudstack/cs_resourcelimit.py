@@ -1,8 +1,22 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016, René Moser <mail@renemoser.net>
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# (c) 2016, René Moser <mail@renemoser.net>
+#
+# This file is part of Ansible
+#
+# Ansible is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Ansible is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with Ansible. If not, see <http://www.gnu.org/licenses/>.
 
 ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['stableinterface'],
@@ -54,15 +68,15 @@ extends_documentation_fragment: cloudstack
 '''
 
 EXAMPLES = '''
-- name: Update a resource limit for instances of a domain
-  local_action:
+# Update a resource limit for instances of a domain
+- local_action:
     module: cs_resourcelimit
     type: instance
     limit: 10
     domain: customers
 
-- name: Update a resource limit for instances of an account
-  local_action:
+# Update a resource limit for instances of an account
+- local_action:
     module: cs_resourcelimit
     type: instance
     limit: 12
@@ -142,7 +156,7 @@ class AnsibleCloudStackResourceLimit(AnsibleCloudStack):
             'projectid': self.get_project(key='id'),
             'resourcetype': self.get_resource_type()
         }
-        resource_limit = self.query_api('listResourceLimits', **args)
+        resource_limit = self.cs.listResourceLimits(**args)
         if resource_limit:
             if 'limit' in resource_limit['resourcelimit'][0]:
                 resource_limit['resourcelimit'][0]['limit'] = int(resource_limit['resourcelimit'][0])
@@ -163,7 +177,7 @@ class AnsibleCloudStackResourceLimit(AnsibleCloudStack):
         if self.has_changed(args, resource_limit):
             self.result['changed'] = True
             if not self.module.check_mode:
-                res = self.query_api('updateResourceLimit', **args)
+                res = self.cs.updateResourceLimit(**args)
                 resource_limit = res['resourcelimit']
         return resource_limit
 

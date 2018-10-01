@@ -85,7 +85,7 @@ class TestManager(unittest.TestCase):
         # Configure the arguments that would be sent to the Ansible module
         set_module_args(dict(
             module='gtm',
-            password='password',
+            password='passsword',
             server='localhost',
             user='admin'
         ))
@@ -130,7 +130,7 @@ class TestManager(unittest.TestCase):
             # Configure the arguments that would be sent to the Ansible module
             set_module_args(dict(
                 module=module,
-                password='password',
+                password='passsword',
                 server='localhost',
                 user='admin'
             ))

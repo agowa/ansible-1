@@ -93,12 +93,19 @@ import re
 
 
 def execute_show_command(module, command):
-    format = 'text'
+    format = 'json'
     cmds = [{
         'command': command,
         'output': format,
     }]
-    output = run_commands(module, cmds)
+    output = run_commands(module, cmds, False)
+    if len(output) == 0 or len(output[0]) == 0:
+        # If we get here the platform does not
+        # support structured output.  Resend as
+        # text.
+        cmds[0]['output'] = 'text'
+        output = run_commands(module, cmds, False)
+
     return output
 
 
@@ -123,7 +130,7 @@ def map_config_to_obj(module):
     output = execute_show_command(module, command)[0]
 
     if "Invalid command" in output:
-        module.fail_json(msg="banner: %s may not be supported on this platform.  Possible values are : exec | motd" % module.params['banner'])
+        module.fail_json(msg="banner: exec may not be supported on this platform.  Possible values are : exec | motd")
 
     if isinstance(output, dict):
         output = list(output.values())

@@ -1,7 +1,3 @@
-:orphan:
-
-.. _testing_integration:
-
 *****************
 Integration tests
 *****************
@@ -149,7 +145,7 @@ Legacy Cloud Tests
 ==================
 
 Some of the cloud tests run as normal integration tests, and others run as legacy tests; see the
-:ref:`testing_integration_legacy` page for more information.
+:doc:`testing_integration_legacy` page for more information.
 
 
 Other configuration for Cloud Tests

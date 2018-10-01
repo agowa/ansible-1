@@ -3,29 +3,29 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-*******************
+====================================
 Ansible Style Guide
-*******************
+====================================
 
-Welcome to the Ansible Style Guide
-==================================
-
-Follow these guidelines to create clear, concise, useful community contributions and documentation. This guide helps us make the content on ansible.com consistent.
+.. Welcome to Ansible Style Guide's documentation! ===============================================
 
 .. toctree::
   :maxdepth: 1
+  :numbered:
 
+  self
+  why_use
+  resources
   basic_rules
   voice_style
   trademarks
   grammar_punctuation
-  spelling_word_choice
-  resources
+  spelling_word_choice 
+  
 
+.. Indices and tables 
+.. ================== 
 
-.. Indices and tables
-.. ==================
-
-.. * :ref:`genindex`
-.. * :ref:`modindex`
+.. * :ref:`genindex` 
+.. * :ref:`modindex` 
 .. * :ref:`search`

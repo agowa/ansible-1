@@ -30,14 +30,10 @@
 import os
 
 try:
-    import pymysql as mysql_driver
+    import MySQLdb
+    mysqldb_found = True
 except ImportError:
-    try:
-        import MySQLdb as mysql_driver
-    except ImportError:
-        mysql_driver = None
-
-mysql_driver_fail_msg = 'The PyMySQL (Python 2.7 and Python 3.X) or MySQL-python (Python 2.X) module is required.'
+    mysqldb_found = False
 
 
 def mysql_connect(module, login_user=None, login_password=None, config_file='', ssl_cert=None, ssl_key=None, ssl_ca=None, db=None, cursor_class=None,
@@ -73,8 +69,8 @@ def mysql_connect(module, login_user=None, login_password=None, config_file='', 
     if connect_timeout is not None:
         config['connect_timeout'] = connect_timeout
 
-    db_connection = mysql_driver.connect(**config)
+    db_connection = MySQLdb.connect(**config)
     if cursor_class is not None:
-        return db_connection.cursor(cursorclass=mysql_driver.cursors.DictCursor)
+        return db_connection.cursor(cursorclass=MySQLdb.cursors.DictCursor)
     else:
         return db_connection.cursor()

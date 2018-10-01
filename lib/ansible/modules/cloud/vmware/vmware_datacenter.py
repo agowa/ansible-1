@@ -45,19 +45,19 @@ extends_documentation_fragment: vmware.documentation
 EXAMPLES = '''
 - name: Create Datacenter
   vmware_datacenter:
-    hostname: '{{ vcenter_hostname }}'
-    username: '{{ vcenter_username }}'
-    password: '{{ vcenter_password }}'
-    datacenter_name: '{{ datacenter_name }}'
+    hostname: "{{ ansible_ssh_host }}"
+    username: root
+    password: vmware
+    datacenter_name: "datacenter"
     state: present
   delegate_to: localhost
 
 - name: Delete Datacenter
   vmware_datacenter:
-    hostname: '{{ vcenter_hostname }}'
-    username: '{{ vcenter_username }}'
-    password: '{{ vcenter_password }}'
-    datacenter_name: '{{ datacenter_name }}'
+    hostname: vcenter_hostname
+    username: root
+    password: pass
+    datacenter_name: DC2
     state: absent
   delegate_to: localhost
   register: datacenter_delete_result

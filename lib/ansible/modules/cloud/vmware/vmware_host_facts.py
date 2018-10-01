@@ -36,18 +36,19 @@ extends_documentation_fragment: vmware.documentation
 EXAMPLES = '''
 - name: Gather vmware host facts
   vmware_host_facts:
-    hostname: "{{ esxi_server }}"
-    username: "{{ esxi_username }}"
-    password: "{{ esxi_password }}"
+    hostname: esxi_ip_or_hostname
+    username: username
+    password: password
   register: host_facts
   delegate_to: localhost
 
 - name: Get VSAN Cluster UUID from host facts
   vmware_host_facts:
-    hostname: "{{ esxi_server }}"
-    username: "{{ esxi_username }}"
-    password: "{{ esxi_password }}"
+    hostname: esxi_ip_or_hostname
+    username: username
+    password: password
   register: host_facts
+
 - set_fact:
     cluster_uuid: "{{ host_facts['ansible_facts']['vsan_cluster_uuid'] }}"
 '''
@@ -107,7 +108,7 @@ from ansible.module_utils.basic import AnsibleModule, bytes_to_human
 from ansible.module_utils.vmware import PyVmomi, vmware_argument_spec, find_obj
 
 try:
-    from pyVmomi import vim
+    from pyVmomi import vim, vmodl
 except ImportError:
     pass
 

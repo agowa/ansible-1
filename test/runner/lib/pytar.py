@@ -37,7 +37,6 @@ class DefaultTarFilter(TarFilter):
             '.tox',
             '.git',
             '.idea',
-            '.pytest_cache',
             '__pycache__',
             'ansible.egg-info',
         )

@@ -7,23 +7,7 @@ from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
 from ansible.module_utils.network.common.utils import validate_ip_address
-
-try:
-    # Ansible 2.6 and later
-    from ansible.module_utils.network.common.utils import validate_ip_v6_address
-except ImportError:
-    import socket
-
-    # Ansible 2.5 and earlier
-    #
-    # This method is simply backported from the 2.6 source code.
-    def validate_ip_v6_address(address):
-        try:
-            socket.inet_pton(socket.AF_INET6, address)
-        except socket.error:
-            return False
-        return True
-
+from ansible.module_utils.network.common.utils import validate_ip_v6_address
 
 try:
     from library.module_utils.compat.ipaddress import ip_interface
@@ -73,13 +57,13 @@ def ipv6_netmask_to_cidr(mask):
                 break
             count += bit_masks.index(int(w, 16))
         return count
-    except Exception:
+    except:
         return -1
 
 
 def is_valid_ip_network(address):
     try:
-        ip_network(u'{0}'.format(address))
+        ip_network(address)
         return True
     except ValueError:
         return False
@@ -87,7 +71,7 @@ def is_valid_ip_network(address):
 
 def is_valid_ip_interface(address):
     try:
-        ip_interface(u'{0}'.format(address))
+        ip_interface(address)
         return True
     except ValueError:
         return False

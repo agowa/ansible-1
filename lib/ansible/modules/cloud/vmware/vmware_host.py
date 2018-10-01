@@ -265,7 +265,7 @@ class VMwareHost(PyVmomi):
                     host_connect_spec.sslThumbprint = task_error.thumbprint
                 else:
                     self.module.fail_json(msg="Failed to add host %s to vCenter: %s" % (self.esxi_hostname,
-                                                                                        to_native(task_error)))
+                                                                                        to_native(task_error.msg)))
             except vmodl.fault.NotSupported:
                 self.module.fail_json(msg="Failed to add host %s to vCenter as host is"
                                           " being added to a folder %s whose childType"

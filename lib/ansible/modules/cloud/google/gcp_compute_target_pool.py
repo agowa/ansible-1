@@ -48,17 +48,7 @@ options:
         default: 'present'
     backup_pool:
         description:
-            - This field is applicable only when the containing target pool is serving a forwarding
-              rule as the primary pool, and its failoverRatio field is properly set to a value
-              between [0, 1].
-            - 'backupPool and failoverRatio together define the fallback behavior of the primary
-              target pool: if the ratio of the healthy instances in the primary pool is at or
-              below failoverRatio, traffic arriving at the load-balanced IP will be directed to
-              the backup pool.'
-            - In case where failoverRatio and backupPool are not set, or all the instances in
-              the backup pool are unhealthy, the traffic will be directed back to the primary
-              pool in the "force" mode, where traffic will be spread to the healthy instances
-              with the best effort, or to all instances when no instance is healthy.
+            - A reference to TargetPool resource.
         required: false
     description:
         description:
@@ -80,10 +70,7 @@ options:
         required: false
     health_check:
         description:
-            - A reference to a HttpHealthCheck resource.
-            - A member instance in this pool is considered healthy if and only if the health checks
-              pass. If not specified it means all member instances will be considered healthy
-              at all times.
+            - A reference to HttpHealthCheck resource.
         required: false
     instances:
         description:
@@ -111,39 +98,28 @@ options:
         choices: ['NONE', 'CLIENT_IP', 'CLIENT_IP_PROTO']
     region:
         description:
-            - The region where the target pool resides.
+            - A reference to Region resource.
         required: true
 extends_documentation_fragment: gcp
-notes:
-    - "API Reference: U(https://cloud.google.com/compute/docs/reference/rest/v1/targetPools)"
-    - "Official Documentation: U(https://cloud.google.com/compute/docs/load-balancing/network/target-pools)"
 '''
 
 EXAMPLES = '''
 - name: create a target pool
   gcp_compute_target_pool:
-      name: "test_object"
-      region: us-west1
-      project: "test_project"
-      auth_kind: "service_account"
-      service_account_file: "/tmp/auth.pem"
+      name: testObject
+      region: 'us-west1'
+      project: testProject
+      auth_kind: service_account
+      service_account_file: /tmp/auth.pem
+      scopes:
+        - https://www.googleapis.com/auth/compute
       state: present
 '''
 
 RETURN = '''
     backup_pool:
         description:
-            - This field is applicable only when the containing target pool is serving a forwarding
-              rule as the primary pool, and its failoverRatio field is properly set to a value
-              between [0, 1].
-            - 'backupPool and failoverRatio together define the fallback behavior of the primary
-              target pool: if the ratio of the healthy instances in the primary pool is at or
-              below failoverRatio, traffic arriving at the load-balanced IP will be directed to
-              the backup pool.'
-            - In case where failoverRatio and backupPool are not set, or all the instances in
-              the backup pool are unhealthy, the traffic will be directed back to the primary
-              pool in the "force" mode, where traffic will be spread to the healthy instances
-              with the best effort, or to all instances when no instance is healthy.
+            - A reference to TargetPool resource.
         returned: success
         type: dict
     creation_timestamp:
@@ -173,10 +149,7 @@ RETURN = '''
         type: str
     health_check:
         description:
-            - A reference to a HttpHealthCheck resource.
-            - A member instance in this pool is considered healthy if and only if the health checks
-              pass. If not specified it means all member instances will be considered healthy
-              at all times.
+            - A reference to HttpHealthCheck resource.
         returned: success
         type: dict
     id:
@@ -212,7 +185,7 @@ RETURN = '''
         type: str
     region:
         description:
-            - The region where the target pool resides.
+            - A reference to Region resource.
         returned: success
         type: str
 '''
@@ -247,9 +220,6 @@ def main():
         )
     )
 
-    if not module.params['scopes']:
-        module.params['scopes'] = ['https://www.googleapis.com/auth/compute']
-
     state = module.params['state']
     kind = 'compute#targetPool'
 
@@ -259,10 +229,10 @@ def main():
     if fetch:
         if state == 'present':
             if is_different(module, fetch):
-                fetch = update(module, self_link(module), kind)
+                fetch = update(module, self_link(module), kind, fetch)
                 changed = True
         else:
-            delete(module, self_link(module), kind)
+            delete(module, self_link(module), kind, fetch)
             fetch = {}
             changed = True
     else:
@@ -282,12 +252,12 @@ def create(module, link, kind):
     return wait_for_operation(module, auth.post(link, resource_to_request(module)))
 
 
-def update(module, link, kind):
+def update(module, link, kind, fetch):
     auth = GcpSession(module, 'compute')
     return wait_for_operation(module, auth.put(link, resource_to_request(module)))
 
 
-def delete(module, link, kind):
+def delete(module, link, kind, fetch):
     auth = GcpSession(module, 'compute')
     return wait_for_operation(module, auth.delete(link))
 
@@ -373,15 +343,15 @@ def is_different(module, response):
 # This is for doing comparisons with Ansible's current parameters.
 def response_to_hash(module, response):
     return {
-        u'backupPool': replace_resource_dict(module.params.get(u'backup_pool', {}), 'selfLink'),
+        u'backupPool': response.get(u'backupPool'),
         u'creationTimestamp': response.get(u'creationTimestamp'),
         u'description': response.get(u'description'),
         u'failoverRatio': response.get(u'failoverRatio'),
         u'healthCheck': response.get(u'healthCheck'),
         u'id': response.get(u'id'),
         u'instances': response.get(u'instances'),
-        u'name': module.params.get('name'),
-        u'sessionAffinity': module.params.get('session_affinity')
+        u'name': response.get(u'name'),
+        u'sessionAffinity': response.get(u'sessionAffinity')
     }
 
 
@@ -397,7 +367,7 @@ def async_op_url(module, extra_data=None):
 def wait_for_operation(module, response):
     op_result = return_if_object(module, response, 'compute#operation')
     if op_result is None:
-        return {}
+        return None
     status = navigate_hash(op_result, ['status'])
     wait_done = wait_for_completion(status, op_result, module)
     return fetch_resource(module, navigate_hash(wait_done, ['targetLink']), 'compute#targetPool')

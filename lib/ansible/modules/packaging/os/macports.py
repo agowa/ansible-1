@@ -22,67 +22,43 @@ module: macports
 author: "Jimmy Tang (@jcftang)"
 short_description: Package manager for MacPorts
 description:
-    - Manages MacPorts packages (ports)
+    - Manages MacPorts packages
 version_added: "1.1"
 options:
     name:
         description:
-            - A list of port names.
-        aliases: ['port']
+            - name of package to install/remove
         required: true
     state:
         description:
-            - Indicates the desired state of the port.
+            - state of the package
         choices: [ 'present', 'absent', 'active', 'inactive' ]
         default: present
-    update_ports:
+    update_cache:
         description:
-            - Update the ports tree first.
-        aliases: ['update_cache']
+            - update the package db first
         default: "no"
         type: bool
-    variant:
-        description:
-            - A port variant specification.
-            - 'C(variant) is only supported with state: I(installed)/I(present).'
-        aliases: ['variants']
-        version_added: "2.7"
 '''
 EXAMPLES = '''
-- name: Install the foo port
-  macports:
+- macports:
     name: foo
+    state: present
 
-- name: Install the universal, x11 variant of the foo port
-  macports:
+- macports:
     name: foo
-    variant: +universal+x11
+    state: present
+    update_cache: yes
 
-- name: Install a list of ports
-  macports:
-    name: "{{ ports }}"
-  vars:
-    ports:
-    - foo
-    - foo-tools
-
-- name: Update the ports tree then install the foo port
-  macports:
-    name: foo
-    update_ports: yes
-
-- name: Remove the foo port
-  macports:
+- macports:
     name: foo
     state: absent
 
-- name: Activate the foo port
-  macports:
+- macports:
     name: foo
     state: active
 
-- name: Deactivate the foo port
-  macports:
+- macports:
     name: foo
     state: inactive
 '''
@@ -91,17 +67,17 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.six.moves import shlex_quote
 
 
-def sync_ports(module, port_path):
-    """ Sync ports tree. """
+def update_package_db(module, port_path):
+    """ Updates packages list. """
 
     rc, out, err = module.run_command("%s sync" % port_path)
 
     if rc != 0:
-        module.fail_json(msg="Could not update ports tree", stdout=out, stderr=err)
+        module.fail_json(msg="could not update package db")
 
 
-def query_port(module, port_path, name, state="present"):
-    """ Returns whether a port is installed or not. """
+def query_package(module, port_path, name, state="present"):
+    """ Returns whether a package is installed or not. """
 
     if state == "present":
 
@@ -121,109 +97,108 @@ def query_port(module, port_path, name, state="present"):
         return False
 
 
-def remove_ports(module, port_path, ports):
-    """ Uninstalls one or more ports if installed. """
+def remove_packages(module, port_path, packages):
+    """ Uninstalls one or more packages if installed. """
 
     remove_c = 0
-    # Using a for loop in case of error, we can report the port that failed
-    for port in ports:
-        # Query the port first, to see if we even need to remove
-        if not query_port(module, port_path, port):
+    # Using a for loop in case of error, we can report the package that failed
+    for package in packages:
+        # Query the package first, to see if we even need to remove
+        if not query_package(module, port_path, package):
             continue
 
-        rc, out, err = module.run_command("%s uninstall %s" % (port_path, port))
+        rc, out, err = module.run_command("%s uninstall %s" % (port_path, package))
 
-        if query_port(module, port_path, port):
-            module.fail_json(msg="Failed to remove %s: %s" % (port, err))
+        if query_package(module, port_path, package):
+            module.fail_json(msg="failed to remove %s: %s" % (package, out))
 
         remove_c += 1
 
     if remove_c > 0:
 
-        module.exit_json(changed=True, msg="Removed %s port(s)" % remove_c)
+        module.exit_json(changed=True, msg="removed %s package(s)" % remove_c)
 
-    module.exit_json(changed=False, msg="Port(s) already absent")
+    module.exit_json(changed=False, msg="package(s) already absent")
 
 
-def install_ports(module, port_path, ports, variant):
-    """ Installs one or more ports if not already installed. """
+def install_packages(module, port_path, packages):
+    """ Installs one or more packages if not already installed. """
 
     install_c = 0
 
-    for port in ports:
-        if query_port(module, port_path, port):
+    for package in packages:
+        if query_package(module, port_path, package):
             continue
 
-        rc, out, err = module.run_command("%s install %s %s" % (port_path, port, variant))
+        rc, out, err = module.run_command("%s install %s" % (port_path, package))
 
-        if not query_port(module, port_path, port):
-            module.fail_json(msg="Failed to install %s: %s" % (port, err))
+        if not query_package(module, port_path, package):
+            module.fail_json(msg="failed to install %s: %s" % (package, out))
 
         install_c += 1
 
     if install_c > 0:
-        module.exit_json(changed=True, msg="Installed %s port(s)" % (install_c))
+        module.exit_json(changed=True, msg="installed %s package(s)" % (install_c))
 
-    module.exit_json(changed=False, msg="Port(s) already present")
+    module.exit_json(changed=False, msg="package(s) already present")
 
 
-def activate_ports(module, port_path, ports):
-    """ Activate a port if it's inactive. """
+def activate_packages(module, port_path, packages):
+    """ Activate a package if it's inactive. """
 
     activate_c = 0
 
-    for port in ports:
-        if not query_port(module, port_path, port):
-            module.fail_json(msg="Failed to activate %s, port(s) not present" % (port))
+    for package in packages:
+        if not query_package(module, port_path, package):
+            module.fail_json(msg="failed to activate %s, package(s) not present" % (package))
 
-        if query_port(module, port_path, port, state="active"):
+        if query_package(module, port_path, package, state="active"):
             continue
 
-        rc, out, err = module.run_command("%s activate %s" % (port_path, port))
+        rc, out, err = module.run_command("%s activate %s" % (port_path, package))
 
-        if not query_port(module, port_path, port, state="active"):
-            module.fail_json(msg="Failed to activate %s: %s" % (port, err))
+        if not query_package(module, port_path, package, state="active"):
+            module.fail_json(msg="failed to activate %s: %s" % (package, out))
 
         activate_c += 1
 
     if activate_c > 0:
-        module.exit_json(changed=True, msg="Activated %s port(s)" % (activate_c))
+        module.exit_json(changed=True, msg="activated %s package(s)" % (activate_c))
 
-    module.exit_json(changed=False, msg="Port(s) already active")
+    module.exit_json(changed=False, msg="package(s) already active")
 
 
-def deactivate_ports(module, port_path, ports):
-    """ Deactivate a port if it's active. """
+def deactivate_packages(module, port_path, packages):
+    """ Deactivate a package if it's active. """
 
     deactivated_c = 0
 
-    for port in ports:
-        if not query_port(module, port_path, port):
-            module.fail_json(msg="Failed to deactivate %s, port(s) not present" % (port))
+    for package in packages:
+        if not query_package(module, port_path, package):
+            module.fail_json(msg="failed to activate %s, package(s) not present" % (package))
 
-        if not query_port(module, port_path, port, state="active"):
+        if not query_package(module, port_path, package, state="active"):
             continue
 
-        rc, out, err = module.run_command("%s deactivate %s" % (port_path, port))
+        rc, out, err = module.run_command("%s deactivate %s" % (port_path, package))
 
-        if query_port(module, port_path, port, state="active"):
-            module.fail_json(msg="Failed to deactivate %s: %s" % (port, err))
+        if query_package(module, port_path, package, state="active"):
+            module.fail_json(msg="failed to deactivated %s: %s" % (package, out))
 
         deactivated_c += 1
 
     if deactivated_c > 0:
-        module.exit_json(changed=True, msg="Deactivated %s port(s)" % (deactivated_c))
+        module.exit_json(changed=True, msg="deactivated %s package(s)" % (deactivated_c))
 
-    module.exit_json(changed=False, msg="Port(s) already inactive")
+    module.exit_json(changed=False, msg="package(s) already inactive")
 
 
 def main():
     module = AnsibleModule(
         argument_spec=dict(
-            name=dict(aliases=["port"], required=True, type='list'),
+            name=dict(aliases=["pkg"], required=True),
             state=dict(default="present", choices=["present", "installed", "absent", "removed", "active", "inactive"]),
-            update_ports=dict(aliases=["update_cache"], default="no", type='bool'),
-            variant=dict(aliases=["variants"], default=None, type='str')
+            update_cache=dict(default="no", aliases=["update-cache"], type='bool')
         )
     )
 
@@ -231,24 +206,22 @@ def main():
 
     p = module.params
 
-    if p["update_ports"]:
-        sync_ports(module, port_path)
+    if p["update_cache"]:
+        update_package_db(module, port_path)
 
-    pkgs = p["name"]
-
-    variant = p["variant"]
+    pkgs = p["name"].split(",")
 
     if p["state"] in ["present", "installed"]:
-        install_ports(module, port_path, pkgs, variant)
+        install_packages(module, port_path, pkgs)
 
     elif p["state"] in ["absent", "removed"]:
-        remove_ports(module, port_path, pkgs)
+        remove_packages(module, port_path, pkgs)
 
     elif p["state"] == "active":
-        activate_ports(module, port_path, pkgs)
+        activate_packages(module, port_path, pkgs)
 
     elif p["state"] == "inactive":
-        deactivate_ports(module, port_path, pkgs)
+        deactivate_packages(module, port_path, pkgs)
 
 
 if __name__ == '__main__':

@@ -78,7 +78,7 @@ author:
 EXAMPLES = r'''
 - name: Disable the setup utility
   bigip_sys_global:
-    gui_setup: no
+    gui_setup: disabled
     password: secret
     server: lb.mydomain.com
     user: admin
@@ -93,9 +93,9 @@ banner_text:
   type: string
   sample: This is a corporate device. Do not touch.
 console_timeout:
-  description:
-    - The new number of seconds of inactivity before the system
-      logs off a user that is logged on.
+  description: >
+    The new number of seconds of inactivity before the system
+    logs off a user that is logged on.
   returned: changed
   type: int
   sample: 600
@@ -103,39 +103,40 @@ gui_setup:
   description: The new setting for the Setup utility.
   returned: changed
   type: string
-  sample: yes
+  sample: enabled
 lcd_display:
   description: The new setting for displaying the system menu on the LCD.
   returned: changed
   type: string
-  sample: yes
+  sample: enabled
 mgmt_dhcp:
   description: The new setting for whether the mgmt interface should DHCP or not.
   returned: changed
   type: string
-  sample: yes
+  sample: enabled
 net_reboot:
   description: The new setting for whether the system should boot to an ISO on the network or not.
   returned: changed
   type: string
-  sample: yes
+  sample: enabled
 quiet_boot:
-  description:
-    - The new setting for whether the system should suppress information to
-      the console during boot or not.
+  description: >
+    The new setting for whether the system should suppress information to
+    the console during boot or not.
   returned: changed
   type: string
-  sample: yes
+  sample: enabled
 security_banner:
-  description:
-    - The new setting for whether the system should display an advisory message
-      on the login screen or not.
+  description: >
+    The new setting for whether the system should display an advisory message
+    on the login screen or not.
   returned: changed
   type: string
-  sample: yes
+  sample: enabled
 '''
 
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.parsing.convert_bool import BOOLEANS
 from ansible.module_utils.parsing.convert_bool import BOOLEANS_TRUE
 from ansible.module_utils.parsing.convert_bool import BOOLEANS_FALSE
 

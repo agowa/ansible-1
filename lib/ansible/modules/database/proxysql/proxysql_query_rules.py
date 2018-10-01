@@ -148,11 +148,10 @@ EXAMPLES = '''
 # single batch using the M(proxysql_manage_config) module). It uses supplied
 # credentials to connect to the proxysql admin interface.
 
-- proxysql_query_rules:
+- proxysql_backend_servers:
     login_user: admin
     login_password: admin
     username: 'guest_ro'
-    match_pattern: "^SELECT.*"
     destination_hostgroup: 1
     active: 1
     retries: 3
@@ -164,7 +163,7 @@ EXAMPLES = '''
 # config to runtime.  It uses credentials in a supplied config file to connect
 # to the proxysql admin interface.
 
-- proxysql_query_rules:
+- proxysql_backend_servers:
     config_file: '~/proxysql.cnf'
     username: 'guest_ro'
     state: absent
@@ -221,9 +220,17 @@ ANSIBLE_METADATA = {'metadata_version': '1.1',
 
 
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.mysql import mysql_connect, mysql_driver, mysql_driver_fail_msg
+from ansible.module_utils.mysql import mysql_connect
 from ansible.module_utils.six import iteritems
 from ansible.module_utils._text import to_native
+
+try:
+    import MySQLdb
+    import MySQLdb.cursors
+except ImportError:
+    MYSQLDB_FOUND = False
+else:
+    MYSQLDB_FOUND = True
 
 # ===========================================
 # proxysql module specific support methods.
@@ -237,8 +244,10 @@ def perform_checks(module):
             msg="login_port must be a valid unix port number (0-65535)"
         )
 
-    if mysql_driver is None:
-        module.fail_json(msg=mysql_driver_fail_msg)
+    if not MYSQLDB_FOUND:
+        module.fail_json(
+            msg="the python mysqldb module is required"
+        )
 
 
 def save_config_to_disk(cursor):
@@ -542,8 +551,8 @@ def main():
                                login_user,
                                login_password,
                                config_file,
-                               cursor_class=mysql_driver.cursors.DictCursor)
-    except mysql_driver.Error as e:
+                               cursor_class=MySQLdb.cursors.DictCursor)
+    except MySQLdb.Error as e:
         module.fail_json(
             msg="unable to connect to ProxySQL Admin Module.. %s" % to_native(e)
         )
@@ -573,7 +582,7 @@ def main():
                 result['rules'] = \
                     proxysql_query_rule.get_rule_config(cursor)
 
-        except mysql_driver.Error as e:
+        except MySQLdb.Error as e:
             module.fail_json(
                 msg="unable to modify rule.. %s" % to_native(e)
             )
@@ -596,7 +605,7 @@ def main():
                 result['changed'] = False
                 result['msg'] = ("The rule is already absent from the" +
                                  " mysql_query_rules memory configuration")
-        except mysql_driver.Error as e:
+        except MySQLdb.Error as e:
             module.fail_json(
                 msg="unable to remove rule.. %s" % to_native(e)
             )

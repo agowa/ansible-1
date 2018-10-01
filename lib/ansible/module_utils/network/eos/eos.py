@@ -413,10 +413,8 @@ def to_command(module, commands):
     transform = ComplexList(dict(
         command=dict(key=True),
         output=dict(default=default_output),
-        prompt=dict(type='list'),
-        answer=dict(type='list'),
-        sendonly=dict(type='bool', default=False),
-        check_all=dict(type='bool', default=False),
+        prompt=dict(),
+        answer=dict()
     ), module)
 
     return transform(to_list(commands))

@@ -155,7 +155,10 @@ import ConfigParser
 
 from six import iteritems
 
-import json
+try:
+    import json
+except ImportError:
+    import simplejson as json
 
 try:
     import pyrax

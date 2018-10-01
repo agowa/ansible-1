@@ -6,6 +6,7 @@ when it comes to components like path separators and OS-specific tasks.
 This document covers details specific to using Ansible for Windows.
 
 .. contents:: Topics
+   :local:
 
 Use Cases
 `````````
@@ -371,7 +372,7 @@ standard:
 .. Note:: You should only quote strings when it is absolutely
     necessary or required by YAML, and then use single quotes.
 
-The YAML specification considers the following `escape sequences <http://www.yaml.org/spec/current.html#id2517668>`_:
+The YAML specification considers the following `escape sequences <http://yaml.org/spec/current.html#id2517668>`_:
 
 * ``\0``, ``\\``, ``\"``, ``\_``, ``\a``, ``\b``, ``\e``, ``\f``, ``\n``, ``\r``, ``\t``,
   ``\v``, ``\L``, ``\N`` and ``\P`` -- Single character escape

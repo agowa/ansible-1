@@ -69,7 +69,7 @@ extends_documentation_fragment: aci
 '''
 
 EXAMPLES = r'''
-- name: Add a tenant using certifcate authentication
+- name: Add a tenant using certificate authentication
   aci_rest:
     host: apic
     username: admin
@@ -142,6 +142,7 @@ EXAMPLES = r'''
     method: get
     path: /api/node/class/fvTenant.json
   delegate_to: localhost
+  register: query_result
 
 - name: Configure contracts
   aci_rest:

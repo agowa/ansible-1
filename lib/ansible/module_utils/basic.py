@@ -82,6 +82,7 @@ import pwd
 import platform
 import errno
 import datetime
+from collections import deque
 from itertools import chain, repeat
 
 try:
@@ -109,26 +110,14 @@ NoneType = type(None)
 try:
     import json
     # Detect the python-json library which is incompatible
-    # Look for simplejson if that's the case
     try:
         if not isinstance(json.loads, types.FunctionType) or not isinstance(json.dumps, types.FunctionType):
             raise ImportError
     except AttributeError:
         raise ImportError
 except ImportError:
-    try:
-        import simplejson as json
-    except ImportError:
-        print('\n{"msg": "Error: ansible requires the stdlib json or simplejson module, neither was found!", "failed": true}')
-        sys.exit(1)
-    except SyntaxError:
-        print('\n{"msg": "SyntaxError: probably due to installed simplejson being for a different python version", "failed": true}')
-        sys.exit(1)
-    else:
-        sj_version = json.__version__.split('.')
-        if sj_version < ['1', '6']:
-            # Version 1.5 released 2007-01-18 does not have the encoding parameter which we need
-            print('\n{"msg": "Error: Ansible requires the stdlib json or simplejson >= 1.6.  Neither was found!", "failed": true}')
+    print('\n{"msg": "Error: ansible requires the stdlib json and was not found!", "failed": true}')
+    sys.exit(1)
 
 AVAILABLE_HASH_ALGORITHMS = dict()
 try:
@@ -144,17 +133,22 @@ try:
         algorithms = ('md5', 'sha1', 'sha224', 'sha256', 'sha384', 'sha512')
     for algorithm in algorithms:
         AVAILABLE_HASH_ALGORITHMS[algorithm] = getattr(hashlib, algorithm)
-except ImportError:
+
+    # we may have been able to import md5 but it could still not be available
+    try:
+        hashlib.md5()
+    except ValueError:
+        algorithms.pop('md5', None)
+except Exception:
     import sha
     AVAILABLE_HASH_ALGORITHMS = {'sha1': sha.sha}
     try:
         import md5
         AVAILABLE_HASH_ALGORITHMS['md5'] = md5.md5
-    except ImportError:
+    except Exception:
         pass
 
 from ansible.module_utils.common._collections_compat import (
-    deque,
     KeysView,
     Mapping, MutableMapping,
     Sequence, MutableSequence,
@@ -2333,6 +2327,8 @@ class AnsibleModule(object):
                 for d in kwargs['deprecations']:
                     if isinstance(d, SEQUENCETYPE) and len(d) == 2:
                         self.deprecate(d[0], version=d[1])
+                    elif isinstance(d, Mapping):
+                        self.deprecate(d['msg'], version=d.get('version', None))
                     else:
                         self.deprecate(d)
             else:
@@ -2686,7 +2682,8 @@ class AnsibleModule(object):
         return self._clean
 
     def run_command(self, args, check_rc=False, close_fds=True, executable=None, data=None, binary_data=False, path_prefix=None, cwd=None,
-                    use_unsafe_shell=False, prompt_regex=None, environ_update=None, umask=None, encoding='utf-8', errors='surrogate_or_strict'):
+                    use_unsafe_shell=False, prompt_regex=None, environ_update=None, umask=None, encoding='utf-8', errors='surrogate_or_strict',
+                    expand_user_and_vars=True):
         '''
         Execute a command, returns rc, stdout, and stderr.
 
@@ -2724,6 +2721,11 @@ class AnsibleModule(object):
             python3 versions we support) otherwise a UnicodeError traceback
             will be raised.  This does not affect transformations of strings
             given as args.
+        :kw expand_user_and_vars: When ``use_unsafe_shell=False`` this argument
+            dictates whether ``~`` is expanded in paths and environment variables
+            are expanded before running the command. When ``True`` a string such as
+            ``$SHELL`` will be expanded regardless of escaping. When ``False`` and
+            ``use_unsafe_shell=False`` no path or variable expansion will be done.
         :returns: A 3-tuple of return code (integer), stdout (native string),
             and stderr (native string).  On python2, stdout and stderr are both
             byte strings.  On python3, stdout and stderr are text strings converted
@@ -2762,8 +2764,11 @@ class AnsibleModule(object):
                     args = to_text(args, errors='surrogateescape')
                 args = shlex.split(args)
 
-            # expand shellisms
-            args = [os.path.expanduser(os.path.expandvars(x)) for x in args if x is not None]
+            # expand ``~`` in paths, and all environment vars
+            if expand_user_and_vars:
+                args = [os.path.expanduser(os.path.expandvars(x)) for x in args if x is not None]
+            else:
+                args = [x for x in args if x is not None]
 
         prompt_re = None
         if prompt_regex:

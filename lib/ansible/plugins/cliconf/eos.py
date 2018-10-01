@@ -82,7 +82,7 @@ class Cliconf(CliconfBase):
 
         lookup = {'running': 'running-config', 'startup': 'startup-config'}
         if source not in lookup:
-            return self.invalid_params("fetching configuration from %s is not supported" % source)
+            raise ValueError("fetching configuration from %s is not supported" % source)
 
         cmd = 'show %s ' % lookup[source]
         if format and format is not 'text':
@@ -96,7 +96,7 @@ class Cliconf(CliconfBase):
     def edit_config(self, candidate=None, commit=True, replace=None, comment=None):
 
         operations = self.get_device_operations()
-        self.check_edit_config_capabiltiy(operations, candidate, commit, replace, comment)
+        self.check_edit_config_capability(operations, candidate, commit, replace, comment)
 
         if (commit is False) and (not self.supports_sessions):
             raise ValueError('check mode is not supported without configuration session')
@@ -153,10 +153,10 @@ class Cliconf(CliconfBase):
             self.send_command('end')
         return resp
 
-    def get(self, command, prompt=None, answer=None, sendonly=False, output=None):
+    def get(self, command, prompt=None, answer=None, sendonly=False, output=None, check_all=False):
         if output:
             command = self._get_command_with_output(command, output)
-        return self.send_command(command, prompt=prompt, answer=answer, sendonly=sendonly)
+        return self.send_command(command, prompt=prompt, answer=answer, sendonly=sendonly, check_all=check_all)
 
     def commit(self):
         self.send_command('commit')
@@ -268,14 +268,14 @@ class Cliconf(CliconfBase):
         return {
             'supports_diff_replace': True,
             'supports_commit': True if self.supports_sessions else False,
-            'supports_rollback': True if self.supports_sessions else False,
+            'supports_rollback': False,
             'supports_defaults': False,
             'supports_onbox_diff': True if self.supports_sessions else False,
             'supports_commit_comment': False,
             'supports_multiline_delimiter': False,
             'supports_diff_match': True,
             'supports_diff_ignore_lines': True,
-            'supports_generate_diff': True,
+            'supports_generate_diff': False if self.supports_sessions else True,
             'supports_replace': True if self.supports_sessions else False
         }
 

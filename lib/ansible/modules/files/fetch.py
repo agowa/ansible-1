@@ -49,7 +49,6 @@ options:
       - Verify that the source and destination checksums match after the files are fetched.
     type: bool
     default: 'yes'
-    aliases: [ "validate_md5" ]
   flat:
     version_added: "1.2"
     description:
@@ -57,6 +56,8 @@ options:
         hostname/path/to/file to the destination.  If dest ends with '/', it
         will use the basename of the source file, similar to the copy module.
         Obviously this is only handy if the filenames are unique.
+    type: bool
+    default: 'no'
 author:
     - "Ansible Core Team"
     - "Michael DeHaan"

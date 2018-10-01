@@ -128,7 +128,7 @@ options:
     description:
       - Provide a dictionary of C(key:value) build arguments that map to Dockerfile ARG directive.
       - Docker expects the value to be a string. For convenience any non-string values will be converted to strings.
-      - Requires Docker API >= 1.21 and docker-py >= 1.7.0.
+      - Requires Docker API >= 1.21.
     required: false
     version_added: "2.2"
   container_limits:
@@ -167,13 +167,15 @@ extends_documentation_fragment:
 
 requirements:
   - "python >= 2.6"
-  - "docker-py >= 1.7.0"
+  - "docker-py >= 1.8.0"
   - "Please note that the L(docker-py,https://pypi.org/project/docker-py/) Python
      module has been superseded by L(docker,https://pypi.org/project/docker/)
      (see L(here,https://github.com/docker/docker-py/issues/1310) for details).
      For Python 2.6, C(docker-py) must be used. Otherwise, it is recommended to
      install the C(docker) Python module. Note that both modules should I(not)
-     be installed at the same time."
+     be installed at the same time. Also note that when both modules are installed
+     and one of them is uninstalled, the other might no longer function and a
+     reinstall of it is required."
   - "Docker API >= 1.20"
 
 author:

@@ -12,6 +12,7 @@ import time
 import textwrap
 import functools
 import pipes
+import sys
 import hashlib
 
 import lib.pytar
@@ -49,6 +50,9 @@ from lib.util import (
     raw_command,
     get_coverage_path,
     get_available_port,
+    generate_pip_command,
+    find_python,
+    get_docker_completion,
 )
 
 from lib.docker_util import (
@@ -148,9 +152,10 @@ def create_shell_command(command):
     return cmd
 
 
-def install_command_requirements(args):
+def install_command_requirements(args, python_version=None):
     """
     :type args: EnvironmentConfig
+    :type python_version: str | None
     """
     generate_egg_info(args)
 
@@ -168,7 +173,10 @@ def install_command_requirements(args):
         if args.junit:
             packages.append('junit-xml')
 
-    pip = args.pip_command
+    if not python_version:
+        python_version = args.python_version
+
+    pip = generate_pip_command(find_python(python_version))
 
     commands = [generate_pip_install(pip, args.command, packages=packages)]
 
@@ -534,6 +542,7 @@ def command_windows_integration(args):
                 instance.result.stop()
 
 
+# noinspection PyUnusedLocal
 def windows_init(args, internal_targets):  # pylint: disable=locally-disabled, unused-argument
     """
     :type args: WindowsIntegrationConfig
@@ -1133,8 +1142,6 @@ def command_units(args):
     if args.delegate:
         raise Delegate(require=changes)
 
-    install_command_requirements(args)
-
     version_commands = []
 
     for version in SUPPORTED_PYTHON_VERSIONS:
@@ -1142,12 +1149,16 @@ def command_units(args):
         if args.python and version != args.python_version:
             continue
 
+        if args.requirements_mode != 'skip':
+            install_command_requirements(args, version)
+
         env = ansible_environment(args)
 
         cmd = [
             'pytest',
             '--boxed',
             '-r', 'a',
+            '-n', 'auto',
             '--color',
             'yes' if args.color else 'no',
             '--junit-xml',
@@ -1166,6 +1177,9 @@ def command_units(args):
         cmd += [target.path for target in include]
 
         version_commands.append((version, cmd, env))
+
+    if args.requirements_mode == 'only':
+        sys.exit()
 
     for version, command, env in version_commands:
         display.info('Unit test with Python %s' % version)
@@ -1429,6 +1443,13 @@ def get_integration_docker_filter(args, targets):
 
     common_integration_filter(args, targets, exclude)
 
+    skip = 'skip/docker/'
+    skipped = [target.name for target in targets if skip in target.aliases]
+    if skipped:
+        exclude.append(skip)
+        display.warning('Excluding tests marked "%s" which cannot run under docker: %s'
+                        % (skip.rstrip('/'), ', '.join(skipped)))
+
     if not args.docker_privileged:
         skip = 'needs/privileged/'
         skipped = [target.name for target in targets if skip in target.aliases]
@@ -1437,15 +1458,9 @@ def get_integration_docker_filter(args, targets):
             display.warning('Excluding tests marked "%s" which require --docker-privileged to run under docker: %s'
                             % (skip.rstrip('/'), ', '.join(skipped)))
 
-    docker_image = args.docker.split('@')[0]  # strip SHA for proper tag comparison
-
     python_version = 2  # images are expected to default to python 2 unless otherwise specified
 
-    if docker_image.endswith('py3'):
-        python_version = 3  # docker images ending in 'py3' are expected to default to python 3
-
-    if docker_image.endswith(':default'):
-        python_version = 3  # docker images tagged 'default' are expected to default to python 3
+    python_version = int(get_docker_completion().get(args.docker_raw).get('python', str(python_version)))
 
     if args.python:  # specifying a numeric --python option overrides the default python
         if args.python.startswith('3'):

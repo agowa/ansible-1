@@ -2125,11 +2125,14 @@ class PyVmomiHelper(PyVmomi):
                 task = vm.ReconfigVM_Task(vm_custom_spec)
                 self.wait_for_task(task)
 
-            if self.params['wait_for_ip_address'] or self.params['state'] in ['poweredon', 'restarted']:
+            if self.params['wait_for_ip_address'] or self.params['wait_for_customization'] or self.params['state'] in ['poweredon', 'restarted']:
                 set_vm_power_state(self.content, vm, 'poweredon', force=False)
 
                 if self.params['wait_for_ip_address']:
                     self.wait_for_vm_ip(vm)
+
+                if self.params['wait_for_customization']:
+                    self.wait_for_customization(vm)
 
             vm_facts = self.gather_facts(vm)
             return {'changed': self.change_detected, 'failed': False, 'instance': vm_facts}
@@ -2273,6 +2276,38 @@ class PyVmomiHelper(PyVmomi):
 
         return facts
 
+    def wait_for_customization(self, vm, poll=1000, sleep=60):
+        facts = {}
+        thispoll = 0
+        eventManager = self.content.eventManager
+
+        while thispoll <= poll:
+            newvm = self.get_vm()
+            byEntity = vim.event.EventFilterSpec.ByEntity(entity=newvm, recursion="self")
+            idsCustStarted = ['CustomizationStartedEvent']
+            filterSpecCustStarted = vim.event.EventFilterSpec(entity=byEntity, eventTypeId=idsCustStarted)
+            eventstarted = eventManager.QueryEvent(filterSpecCustStarted)
+            if len(eventstarted) >= 1:
+                thispoll = 0
+                while thispoll <= poll:
+                    newvm = self.get_vm()
+                    idsFinishedFailed = ['CustomizationSucceeded', 'CustomizationFailed']
+                    filterSpecFinishedFailed = vim.event.EventFilterSpec(entity=byEntity, eventTypeId=idsFinishedFailed)
+                    eventsFinishedFailed = eventManager.QueryEvent(filterSpecFinishedFailed)
+                    if len(filterSpecFinishedFailed) >= 1:
+                        for event in events:
+                            print("%s" % event._wsdlName)
+                        break
+                    else:
+                        time.sleep(sleep)
+                        thispoll2 += 1
+                break
+            else:
+                time.sleep(sleep)
+                thispoll += 1
+        facts = self.gather_facts(newvm)
+        return facts
+
 
 def main():
     argument_spec = vmware_argument_spec()
@@ -2303,6 +2338,7 @@ def main():
         resource_pool=dict(type='str'),
         customization=dict(type='dict', default={}, no_log=True),
         customization_spec=dict(type='str', default=None),
+        wait_for_customization=dict(type='bool', default=False),
         vapp_properties=dict(type='list', default=[]),
         datastore=dict(type='str'),
     )

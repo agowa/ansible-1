@@ -477,7 +477,7 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
 
                     # Based on folder of virtual machine
                     folders = current_host.split('/')[1:]
-                    if folders[0] not in cacheable_results:
+                    if folders[-2] not in cacheable_results:
                         parent_folder = ''
                         self.inventory.add_group(folders[0])
                         while bool(folders):

@@ -78,26 +78,6 @@ import ssl
 import atexit
 from ansible.errors import AnsibleError, AnsibleParserError
 
-# Overwrite _ALWAYS_SAFE to only include letters and number
-# so that everything is correctly quoted
-try:
-    # python3
-    import urllib.parse
-    urllib.parse._ALWAYS_SAFE = frozenset(b'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-                                 b'abcdefghijklmnopqrstuvwxyz'
-                                 b'0123456789')
-    urllib.parse._ALWAYS_SAFE_BYTES = bytes(urllib.parse._ALWAYS_SAFE)
-except ImportError:
-    # python2
-    import urllib
-    urllib.always_safe = ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-                          'abcdefghijklmnopqrstuvwxyz'
-                          '0123456789')
-    urllib._safe_map = {}
-    for i, c in zip(xrange(256), str(bytearray(xrange(256)))):
-        urllib._safe_map[c] = c if (i < 128 and c in urllib.always_safe) else '%{:02X}'.format(i)
-    urllib.parse = urllib # face pyton3 structure, so that python3 syntax can be used afterwards
-
 try:
     # requests is required for exception handling of the ConnectionError
     import requests
@@ -130,6 +110,26 @@ except ImportError:
     HAS_VSPHERE = False
 
 from ansible.plugins.inventory import BaseInventoryPlugin, Cacheable
+
+# Overwrite _ALWAYS_SAFE to only include letters and number
+# so that everything is correctly quoted
+try:
+    # python3
+    import urllib.parse
+    urllib.parse._ALWAYS_SAFE = frozenset(b'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                                 b'abcdefghijklmnopqrstuvwxyz'
+                                 b'0123456789')
+    urllib.parse._ALWAYS_SAFE_BYTES = bytes(urllib.parse._ALWAYS_SAFE)
+except ImportError:
+    # python2
+    import urllib
+    urllib.always_safe = ('ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                          'abcdefghijklmnopqrstuvwxyz'
+                          '0123456789')
+    urllib._safe_map = {}
+    for i, c in zip(xrange(256), str(bytearray(xrange(256)))):
+        urllib._safe_map[c] = c if (i < 128 and c in urllib.always_safe) else '%{:02X}'.format(i)
+    urllib.parse = urllib # face pyton3 structure, so that python3 syntax can be used afterwards
 
 
 class BaseVMwareInventory:
@@ -387,10 +387,22 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
             self._cache[cache_key] = cacheable_results
 
     def _get_fullName(self, vm_obj_obj):
+        # This is based on the url schema vmware uses within the powercli api
+        # but the powercli url has colisions, as it uses slashes as folder name
+        # deliminiter, but slashes can also occure within folder names themselfes
+        # in the original these slashes are not escaped and the resulting path
+        # is unaccessible or even worse it overlays another path and the action
+        # is performed on the vms within the wrong folder.
+        # To prefent this issue, we urlencode every foldername before constructing
+        # the url.
         if(vm_obj_obj.parent):
             return self._get_fullName(vm_obj_obj.parent) + '/' + urllib.parse.quote_plus(vm_obj_obj.name, safe='')
         else:
-            return '/' + urllib.parse.quote_plus(vm_obj_obj.name)
+            # For some reason the api returns 'Datencenter' (not Datacenter) as the
+            # root item, but VMware has not included it within there path schema.
+            # They have instead added the hostname and the port of the instance
+            # So we're going to replicate that.
+            return 'vis:/' + self.pyv.hostname + '@' + str(self.pyv.port)
 
     def _populate_from_cache(self, source_data):
         """ Populate cache using source data """
@@ -428,69 +440,62 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
             for tag in tags:
                 tag_obj = tag_svc.get(tag)
                 tags_info[tag_obj.id] = tag_obj.name
-                if tag_obj.name not in cacheable_results:
-                    cacheable_results[tag_obj.name] = {'hosts': []}
-                    self.inventory.add_group(tag_obj.name)
 
         for vm_obj in objects:
             for vm_obj_property in vm_obj.propSet:
-                # VMware does not provide a way to uniquely identify VM by its name
+                # VMware does not provide a way to uniquely identify a VM by its name
                 # i.e. there can be two virtual machines with same name
+                # but not by it's full path.
+                # There is also an instanceUUID, but that is never shown to the user, so users
+                # are not able to recognize the correct vm that way.
+                # And please dont confuse the instanceUUID with the uuid which is the UUID of the SMBios
+                # and it does not always change if a vm is dupplicated, therefore it is not garanteed
+                # to be unique.
+                # VM names and folders are not restricted to specific characters,
+                # so foldernames need to be encoded first and transformed into a pseudo path.
                 current_host = self._get_fullName(vm_obj.obj)
 
                 if current_host not in hostvars:
                     hostvars[current_host] = {}
                     self.inventory.add_host(current_host)
 
-                    host_ip = vm_obj.obj.guest.ipAddress
-                    if host_ip:
-                        self.inventory.set_variable(current_host, 'ansible_host', host_ip)
-
                     self._populate_host_properties(vm_obj, current_host)
 
                     # Only gather facts related to tag if vCloud and vSphere is installed.
                     if HAS_VCLOUD and HAS_VSPHERE and self.pyv.with_tags:
-                        # Add virtual machine to appropriate tag group
+                        self.inventory.set_variable(current_host, 'vmware.with_tags', True)
                         vm_mo_id = vm_obj.obj._GetMoId()
                         vm_dynamic_id = DynamicID(type='VirtualMachine', id=vm_mo_id)
                         attached_tags = tag_association.list_attached_tags(vm_dynamic_id)
 
                         for tag_id in attached_tags:
-                            self.inventory.add_child(tags_info[tag_id], current_host)
-                            cacheable_results[tags_info[tag_id]]['hosts'].append(current_host)
-
-                    # Based on power state of virtual machine
-                    vm_power = str(vm_obj.obj.summary.runtime.powerState)
-                    if vm_power not in cacheable_results:
-                        cacheable_results[vm_power] = {'hosts': []}
-                        self.inventory.add_group(vm_power)
-                    cacheable_results[vm_power]['hosts'].append(current_host)
-                    self.inventory.add_child(vm_power, current_host)
-
-                    # Based on guest id
-                    vm_guest_id = vm_obj.obj.config.guestId
-                    if vm_guest_id and vm_guest_id not in cacheable_results:
-                        cacheable_results[vm_guest_id] = {'hosts': []}
-                        self.inventory.add_group(vm_guest_id)
-                    cacheable_results[vm_guest_id]['hosts'].append(current_host)
-                    self.inventory.add_child(vm_guest_id, current_host)
+                            #TODO: Test and set falue to false if tag is not attached
+                            self.inventory.set_variable(current_host, 'vmware.tags.' + tags_info[tag_id], True)
 
                     # Based on folder of virtual machine
-                    folders = current_host.split('/')[1:]
+                    folders = current_host.split('/')
                     if folders[-2] not in cacheable_results:
-                        parent_folder = ''
+                        parent_folders = []
                         self.inventory.add_group(folders[0])
+                        cacheable_results[folders[0]] = {'hosts': [], 'children': []}
                         while bool(folders):
-                            parent_folder = folders.pop(0)
+                            if len(folders) == 1:
+                                break
+
+                            parent_folders.append(folders.pop(0))
+                            parent_folder_path = '/'.join(parent_folders)
+
                             if len(folders) > 1:
-                                self.inventory.add_group(folders[0])
-                                cacheable_results[parent_folder] = {'hosts': []}
-                                self.inventory.add_child(parent_folder, folders[0])
-                            elif len(folders) == 1:
-                                cacheable_results[parent_folder] = {'hosts': []}
-                                self.inventory.add_child(parent_folder, current_host)
+                                current_folder = folders[0]
+                                current_folder_path = parent_folder_path + '/' + current_folder
+                                if current_folder_path not in cacheable_results:
+                                    self.inventory.add_group(current_folder_path)
+                                    self.inventory.add_child(parent_folder_path, current_folder_path)
+                                    cacheable_results[parent_folder_path]['children'].append(current_folder_path)
+                                    cacheable_results[current_folder_path] = {'hosts': [], 'children': []}
                             else:
-                                pass
+                                cacheable_results[parent_folder_path]['hosts'].append(current_host)
+                                self.inventory.add_child(parent_folder_path, current_host)
 
         for host in hostvars:
             h = self.inventory.get_host(host)
@@ -502,18 +507,116 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
         # Load VM properties in host_vars
         vm_properties = [
             'name',
+            'customValue',
+
+            'capability.secureBootSupported',
+            'capability.nestedHVSupported'
+
+            'config.annotation',
+            'config.alternateGuestName',
+            'config.bootOptions.bootDelay',
+            'config.bootOptions.bootRetryDelay',
+            'config.bootOptions.bootRetryEnabled',
+            'config.bootOptions.enterBIOSSetup',
+            'config.bootOptions.efiSecureBootEnabled',
+            'config.bootOptions.networkBootProtocol',
+
+            'config.cpuAllocation.limit',
+            'config.cpuAllocation.reservation',
+            'config.cpuAllocation.shares.level',
+            'config.cpuAllocation.shares.shares',
+
+            'config.cpuFeatureMask.eax',
+            'config.cpuFeatureMask.ebx',
+            'config.cpuFeatureMask.ecx',
+            'config.cpuFeatureMask.edx',
+            'config.cpuFeatureMask.level',
+            'config.cpuFeatureMask.vendor',
             'config.cpuHotAddEnabled',
             'config.cpuHotRemoveEnabled',
-            'config.instanceUuid',
+
+            'config.firmware',
+            'config.guestAutoLockEnabled',
+
+            'config.hardware.memoryMB',
+            'config.hardware.numCoresPerSocket',
             'config.hardware.numCPU',
+            'config.hardware.virtualICH7MPresent',
+            'config.hardware.virtualSMCPresent',
+
+            'config.hotPlugMemoryIncrementSize',
+            'config.hotPlugMemoryLimit',
+            'config.instanceUuid',
+
+            'config.memoryAllocation.limit',
+            'config.memoryAllocation.reservation',
+            'config.memoryAllocation.shares.level',
+            'config.memoryAllocation.shares.shares',
+            'config.memoryHotAddEnabled',
+            'config.memoryReservationLockedToMax',
+
+            'config.nestedHVEnabled',
+
+            'config.scheduledHardwareUpgradeInfo.scheduledHardwareUpgradeStatus',
+            'config.scheduledHardwareUpgradeInfo.upgradePolicy',
+            'config.scheduledHardwareUpgradeInfo.versionKey',
+
             'config.template',
-            'config.name',
+
+            'config.tools.afterPowerOn',
+            'config.tools.afterResume',
+            'config.tools.beforeGuestReboot',
+            'config.tools.beforeGuestShutdown',
+            'config.tools.beforeGuestStandby',
+            'config.tools.pendingCustomization',
+            'config.tools.syncTimeWithHost',
+            'config.tools.toolsUpgradePolicy',
+            'config.tools.toolsVersion',
+
+            'config.version',
+
+            'guest.guestFamily',
+            'guest.guestFullName',
+            'guest.guestId',
+            'guest.guestKernelCrashed',
+            'guest.guestOperationsReady',
+            'guest.guestState',
             'guest.hostName',
             'guest.ipAddress',
-            'guest.guestId',
-            'guest.guestState',
+            'guest.interactiveGuestOperationsReady',
+            'guest.toolsInstallType',
+            'guest.toolsRunningStatus',
+            'guest.toolsUpdateStatus',
+            'guest.toolsVersion',
+            'guest.toolsVersionStatus2',
+
+            'guestHeartbeatStatus',
+
+            'runtime.bootTime',
+            'runtime.cleanPowerOff',
+            'runtime.connectionState',
+            'runtime.consolidationNeeded',
+            'runtime.cryptoState',
+            'runtime.dasVmProtection.dasProtected',
+            'runtime.faultToleranceState',
+            'runtime.maxCpuUsage',
             'runtime.maxMemoryUsage',
-            'customValue',
+            'runtime.onlineStandby',
+            'runtime.paused',
+            'runtime.powerState',
+            'runtime.snapshotInBackground',
+            'runtime.suspendInterval',
+            'runtime.suspendTime',
+            'runtime.toolsInstallerMounted',
+            'runtime.vFlashCacheAllocation',
+
+            'summary.config.numEthernetCards',
+            'summary.config.numVirtualDisks',
+            'summary.config.tpmPresent',
+            'summary.storage.committed',
+            'summary.storage.uncommitted',
+            'summary.storage.unshared',
+            'summary.overallStatus',
         ]
         field_mgr = self.pyv.content.customFieldsManager.field
 
@@ -525,4 +628,29 @@ class InventoryModule(BaseInventoryPlugin, Cacheable):
                                                 cust_value.value)
             else:
                 vm_value = self.pyv._get_object_prop(vm_obj.obj, vm_prop.split("."))
+                if type(vm_value) not in [int, str]:
+                    # Some values are enums with a custom vmware specific type
+                    # for simplicity just convert every returned type we don't
+                    # expect to a string.
+                    if vm_value is None:
+                        continue
+                    else:
+                        vm_value = str(vm_value)
                 self.inventory.set_variable(current_host, vm_prop, vm_value)
+
+        primary_host_ip = vm_obj.obj.guest.ipAddress
+        if primary_host_ip:
+            self.inventory.set_variable(current_host, 'ansible_host', primary_host_ip)
+
+        host_FQDN = str(vm_obj.obj.guest.hostName)
+        host_domain_name = '.'.join(host_FQDN.split(".")[1:])
+        self.inventory.set_variable(current_host, 'guest.hostDomainName', host_domain_name)
+
+        self.inventory.set_variable(current_host, 'path', current_host)
+
+        # Set inventory variables, so that if multiple inventories are used one can differentiate
+        # to which host/vcenter the vm belongs to (e.g. production or staging)
+        self.inventory.set_variable(current_host, 'vmware.hostname', self.pyv.hostname)
+        self.inventory.set_variable(current_host, 'vmware.port', self.pyv.port)
+        self.inventory.set_variable(current_host, 'vmware.validate_certs', self.pyv.validate_certs)
+        self.inventory.set_variable(current_host, 'vmware.with_tags', False)

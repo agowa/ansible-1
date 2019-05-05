@@ -1,0 +1,2 @@
+#!/usr/bin/bash
+find . -type f -name *.pyc -exec rm -f {} \;

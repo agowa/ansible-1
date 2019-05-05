@@ -1,3 +1,4 @@
+.localtest
 # build products...
 *.py[co]
 build
